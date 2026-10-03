@@ -171,6 +171,12 @@ python3 .codex-context/tools/codex-context.py analyze --repo "$TARGET"
 Simple optimizer report:
 python3 .codex-context/tools/codex-context.py report --repo "$TARGET"
 
+Health check:
+python3 .codex-context/tools/codex-context.py doctor --repo "$TARGET"
+
+Create a compact fresh-chat handoff:
+python3 .codex-context/tools/codex-context.py fresh-start --repo "$TARGET"
+
 Codex local usage:
 python3 .codex-context/tools/codex-context.py usage
 
