@@ -4,71 +4,80 @@
 
 کاهش مصرف بی‌دلیل context و توکن در Codex **بدون قربانی‌کردن کیفیت نتیجه**.
 
-## نصب سریع
+## ساده‌ترین روش نصب — فقط یک متن داخل Codex
 
-داخل پوشه پروژه فقط این دستور را اجرا کن:
-
-~~~bash
-curl -fsSL https://raw.githubusercontent.com/TIR3D4/codex-context-optimizer/main/install.sh | bash
-~~~
-
-تمام.
-
-اسکریپت خودش تشخیص می‌دهد پروژه **جدید** است یا **از قبل وجود دارد** و تنظیم مناسب را انجام می‌دهد؛ بدون اینکه کد اصلی برنامه را overwrite کند.
-
-بعد پروژه را در یک **چت جدید Codex** باز کن و فقط این را بفرست:
+پروژه‌ات را در Codex باز کن و این متن را بفرست:
 
 ~~~text
-Follow .codex-context/SETUP.md, then continue with my task.
+Install Codex Context Optimizer into the CURRENT project from:
+https://github.com/TIR3D4/codex-context-optimizer
+
+Use prompts/install-and-run.md from that repository as the installation instructions.
+Detect my OS and available tools, install it safely without overwriting application code, preserve any existing AGENTS.md, then follow the generated .codex-context/SETUP.md and continue with my task.
 ~~~
 
-بعد درخواستت را عادی ادامه بده.
+بعد پایینش task خودت را بنویس.
 
 مثلاً:
 
 ~~~text
-Follow .codex-context/SETUP.md, then continue with my task.
+Install Codex Context Optimizer into the CURRENT project from:
+https://github.com/TIR3D4/codex-context-optimizer
 
-برای API لاگین rate limit اضافه کن.
+Use prompts/install-and-run.md from that repository as the installation instructions.
+Detect my OS and available tools, install it safely without overwriting application code, preserve any existing AGENTS.md, then follow the generated .codex-context/SETUP.md and continue with my task.
+
+My task:
+خطای 500 در API لاگین را پیدا و اصلاح کن.
 ~~~
 
-## چه کاری انجام می‌دهد؟
+تمام.
 
-به‌صورت خودکار این موارد را برای پروژه آماده می‌کند:
+Codex خودش سیستم‌عامل و ابزارهای موجود را تشخیص می‌دهد و لازم نیست کاربر بداند Bash، PowerShell یا Git Bash دارد یا نه.
 
-- Atlas برای نقشه فشرده پروژه
-- AGENTS.md کوتاه و بهینه
-- حفظ امن دستورالعمل‌های قبلی پروژه
-- اندازه‌گیری مصرف Codex
-- benchmark قبل/بعد
-- handoff برای چت‌های طولانی
-- فایل‌های context مخصوص ChatGPT Work
+## چه کاری خودکار انجام می‌شود؟
 
-اصل پروژه ساده است:
+- تشخیص پروژه جدید یا موجود
+- حفظ کد اصلی برنامه
+- حفظ AGENTS.md و دستورالعمل‌های موجود
+- آماده‌سازی Atlas در صورت امکان
+- ساخت context فشرده
+- آماده‌سازی اندازه‌گیری مصرف، benchmark و handoff
+- اولویت‌دادن به کیفیت و صحت نتیجه نسبت به کاهش توکن
+
+اصل پروژه:
 
 > با حداقل context کافی شروع کن و هر زمان صحت نتیجه نیاز داشت، context را گسترش بده.
 
-## اگر از قبل چت Codex داری
+## اگر چت قدیمی Codex داری
 
-می‌توانی همان چت را ادامه بدهی. فقط یک بار داخل چت قدیمی بفرست:
+برای بهترین نتیجه، بعد از نصب یک چت جدید باز کن.
+
+اگر می‌خواهی همان چت قدیمی را ادامه بدهی:
 
 ~~~text
 Follow .codex-context/REFRESH_OLD_CHAT.md, then continue the current task.
 ~~~
 
-ولی برای کمترین context و نتیجه تمیزتر، بعد از نصب **چت جدید پیشنهاد می‌شود**.
+## ChatGPT Work
 
-## اگر به‌جای Codex از ChatGPT Work استفاده می‌کنی
-
-بعد از همان دستور نصب، داخل Work بفرست:
+بعد از نصب، داخل Work بفرست:
 
 ~~~text
 Follow .codex-context/WORK_SETUP.md, using the .context files as compact navigation.
 ~~~
 
-## مشاهده مصرف توکن
+## نصب با ترمینال — اختیاری
 
-بعد از نصب:
+اگر خودت ترجیح می‌دهی با command نصب کنی:
+
+~~~bash
+curl -fsSL https://raw.githubusercontent.com/TIR3D4/codex-context-optimizer/main/install.sh | bash
+~~~
+
+این روش اختیاری است. برای سادگی و سازگاری با ویندوز، روش نصب از داخل Codex پیشنهاد می‌شود.
+
+## مشاهده مصرف Codex
 
 ~~~bash
 python3 .codex-context/tools/codex-context.py usage
@@ -80,60 +89,14 @@ python3 .codex-context/tools/codex-context.py usage
 python3 .codex-context/tools/codex-context.py analyze --repo .
 ~~~
 
-برای benchmark قبل و بعد:
+## مستندات
 
-~~~bash
-python3 .codex-context/tools/codex-context.py benchmark-start before --repo .
-# یک task واقعی با Codex انجام بده
-python3 .codex-context/tools/codex-context.py benchmark-end before --repo .
-~~~
-
-بعد همین کار را با نام `after` انجام بده و مقایسه کن:
-
-~~~bash
-python3 .codex-context/tools/codex-context.py benchmark-compare before after --repo .
-~~~
-
-کاهش توکن فقط وقتی موفقیت محسوب می‌شود که کیفیت و صحت نتیجه حفظ شده باشد.
-
-<details>
-<summary><strong>تنظیمات پیشرفته</strong></summary>
-
-### اجبار حالت پروژه جدید
-
-~~~bash
-curl -fsSL https://raw.githubusercontent.com/TIR3D4/codex-context-optimizer/main/install.sh | bash -s -- --mode new
-~~~
-
-### اجبار حالت پروژه موجود
-
-~~~bash
-curl -fsSL https://raw.githubusercontent.com/TIR3D4/codex-context-optimizer/main/install.sh | bash -s -- --mode existing
-~~~
-
-### نصب روی مسیر مشخص
-
-~~~bash
-curl -fsSL https://raw.githubusercontent.com/TIR3D4/codex-context-optimizer/main/install.sh | bash -s -- --target /path/to/project
-~~~
-
-### مستندات
-
+- [Prompt نصب مستقیم از داخل چت](prompts/install-and-run.md)
 - [روش کار](docs/methodology.md)
 - [Benchmark](docs/benchmarking.md)
 - [حفظ کیفیت](docs/quality-guardrails.md)
 - [چت‌های قدیمی](docs/existing-chats.md)
 - [ChatGPT Work](docs/work-mode.md)
-
-### پروژه‌های upstream
-
-- Atlas: https://github.com/fkenmar/atlas
-- agents-md-generator: https://github.com/nguyenthedat123/agents-md-generator
-- OpenAI Codex: https://github.com/openai/codex
-
-</details>
-
-> نکته امنیتی: اگر نمی‌خواهی یک اسکریپت اینترنتی را مستقیم به Bash بدهی، اول فایل [install.sh](install.sh) را بررسی کن یا repo را clone کن و محلی اجرا کن.
 
 ## مجوز
 
