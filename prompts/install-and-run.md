@@ -21,6 +21,9 @@ Requirements:
 10. Then continue with my task below.
 11. If installation is blocked by a missing permission/tool, explain the exact blocker and use the safest available fallback.
 12. Preserve quality over token reduction. Expand context whenever correctness requires it.
+13. At the end of installation, run the optimizer doctor and report commands when available.
+14. If context pressure is HIGH or CRITICAL, prepare a compact handoff and recommend a fresh chat at a clean task boundary instead of forcing the current thread to continue.
+15. Do not automatically install optional third-party context tools such as CatchUp, Codex Compressor, or proxy-based context managers. They may be suggested separately.
 
 My task:
 <WRITE YOUR TASK HERE>
