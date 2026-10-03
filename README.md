@@ -76,16 +76,53 @@ curl -fsSL https://raw.githubusercontent.com/TIR3D4/codex-context-optimizer/main
 
 This is optional. The prompt-first method above is recommended for simplicity and cross-platform use.
 
-## Measure Codex usage
+## Check whether it is actually helping
+
+Use one command:
 
 ~~~bash
-python3 .codex-context/tools/codex-context.py usage
+python .codex-context/tools/codex-context.py report --repo .
 ~~~
 
-Analyze project context:
+The report now shows:
+- live before/after token trend;
+- all post-optimizer responses, not a frozen benchmark;
+- latest-session average usage;
+- context-window pressure;
+- saving drift since the previous report;
+- a fresh-chat recommendation when pressure becomes HIGH or CRITICAL.
+
+Example:
+
+~~~text
+Estimated saving:       22.9% per response
+Context pressure:       HIGH
+Since last report:      declined 7.1 percentage points
+
+Recommended action:
+python .codex-context\tools\codex-context.py fresh-start --repo .
+~~~
+
+Run a health check at any time:
 
 ~~~bash
-python3 .codex-context/tools/codex-context.py analyze --repo .
+python .codex-context/tools/codex-context.py doctor --repo .
+~~~
+
+When a long thread becomes heavy:
+
+~~~bash
+python .codex-context/tools/codex-context.py fresh-start --repo .
+~~~
+
+It creates a compact Git-aware handoff and prints the exact prompt for the new Codex chat.
+
+> A high cached-input percentage is not automatically a problem. The optimizer focuses on average tokens per response and active context-window pressure.
+
+Analyze repository structure separately if needed:
+
+~~~bash
+python .codex-context/tools/codex-context.py analyze --repo .
 ~~~
 
 ## Documentation
@@ -96,6 +133,8 @@ python3 .codex-context/tools/codex-context.py analyze --repo .
 - [Quality guardrails](docs/quality-guardrails.md)
 - [Existing chats](docs/existing-chats.md)
 - [ChatGPT Work](docs/work-mode.md)
+- [Context pressure & fresh starts](docs/context-pressure.md)
+- [Optional integrations](docs/integrations.md)
 
 ## License
 
