@@ -7,6 +7,10 @@ $ErrorActionPreference = "Stop"
 $Target = (Get-Location).Path
 $Base = "https://raw.githubusercontent.com/TIR3D4/codex-context-optimizer/main"
 
+$Python = $null
+if (Get-Command python -ErrorAction SilentlyContinue) { $Python = "python" }
+elseif (Get-Command py -ErrorAction SilentlyContinue) { $Python = "py" }
+
 function Get-OptimizerFile {
     param(
         [Parameter(Mandatory=$true)][string]$Remote,
@@ -18,6 +22,16 @@ function Get-OptimizerFile {
     }
     $tmp = "$Local.download"
     Invoke-WebRequest -UseBasicParsing -Uri "$Base/$Remote" -OutFile $tmp
+
+    # Validate Python tools before replacing a previously working local copy.
+    if ($Local.EndsWith(".py") -and $Python) {
+        & $Python -m py_compile $tmp
+        if ($LASTEXITCODE -ne 0) {
+            Remove-Item -Force -ErrorAction SilentlyContinue $tmp
+            throw "Downloaded optimizer Python file failed syntax validation: $Remote"
+        }
+    }
+
     Move-Item -Force $tmp $Local
 }
 
@@ -66,10 +80,6 @@ if (Test-Path $Agents) {
 # Save one historical baseline only once.
 $Baseline = Join-Path $ContextDir "install-baseline.json"
 if (-not (Test-Path $Baseline)) {
-    $Python = $null
-    if (Get-Command python -ErrorAction SilentlyContinue) { $Python = "python" }
-    elseif (Get-Command py -ErrorAction SilentlyContinue) { $Python = "py" }
-
     if ($Python) {
         try {
             & $Python (Join-Path $ToolsDir "codex-context.py") usage --json |
