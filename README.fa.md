@@ -4,6 +4,68 @@
 
 ابزاری برای کاهش مصرف بی‌دلیل context و توکن در **Codex** و ساخت یک لایه context سبک برای **ChatGPT Work**، بدون قربانی‌کردن کیفیت نتیجه.
 
+## نصب عمومی با یک دستور
+
+این پروژه فقط مخصوص حساب سازنده نیست. هر کسی که بتواند داخل پوشه پروژه command اجرا کند می‌تواند از آن استفاده کند.
+
+### پروژه کاملاً جدید
+
+داخل پوشه پروژه:
+
+~~~bash
+curl -fsSL https://raw.githubusercontent.com/TIR3D4/codex-context-optimizer/main/install.sh | bash -s -- --mode new
+~~~
+
+بعد پروژه را در یک چت جدید Codex باز کن و فقط بفرست:
+
+~~~text
+Follow .codex-context/SETUP.md, then continue with my task.
+~~~
+
+### پروژه‌ای که از قبل وجود دارد
+
+در root همان repository:
+
+~~~bash
+curl -fsSL https://raw.githubusercontent.com/TIR3D4/codex-context-optimizer/main/install.sh | bash -s -- --mode existing
+~~~
+
+بعد یک چت جدید Codex باز کن و همان پیام کوتاه را بفرست:
+
+~~~text
+Follow .codex-context/SETUP.md, then continue with my task.
+~~~
+
+در حالت existing، فایل AGENTS.md موجود کورکورانه overwrite نمی‌شود و برای merge امن نگه داشته می‌شود.
+
+### تشخیص خودکار
+
+اگر نمی‌خواهی حالت را مشخص کنی:
+
+~~~bash
+curl -fsSL https://raw.githubusercontent.com/TIR3D4/codex-context-optimizer/main/install.sh | bash
+~~~
+
+اسکریپت براساس وضعیت repository بین new و existing انتخاب می‌کند.
+
+### ادامه یک چت قدیمی
+
+اگر چت قبل از نصب باز بوده، فقط بفرست:
+
+~~~text
+Follow .codex-context/REFRESH_OLD_CHAT.md, then continue the current task.
+~~~
+
+### ChatGPT Work
+
+بعد از همان نصب:
+
+~~~text
+Follow .codex-context/WORK_SETUP.md, using the .context files as compact navigation.
+~~~
+
+فایل‌های لازم مستقیماً داخل پروژه هدف کپی می‌شوند؛ بنابراین کاربر دیگری هم بدون دسترسی به حساب ChatGPT سازنده می‌تواند از workflow استفاده کند.
+
 ## اصل اصلی
 
 هدف این پروژه «کمترین توکن به هر قیمت» نیست.
