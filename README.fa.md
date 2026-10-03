@@ -4,138 +4,89 @@
 
 کاهش مصرف بی‌دلیل context و توکن در Codex **بدون قربانی‌کردن کیفیت نتیجه**.
 
-## ساده‌ترین روش نصب — فقط یک متن داخل Codex
+## فقط یک مرحله
 
-پروژه‌ات را در Codex باز کن و این متن را بفرست:
-
-~~~text
-Install Codex Context Optimizer into the CURRENT project from:
-https://github.com/TIR3D4/codex-context-optimizer
-
-Use prompts/install-and-run.md from that repository as the installation instructions.
-Detect my OS and available tools, install it safely without overwriting application code, preserve any existing AGENTS.md, then follow the generated .codex-context/SETUP.md and continue with my task.
-~~~
-
-بعد پایینش task خودت را بنویس.
-
-مثلاً:
+پروژه را در Codex باز کن و همین متن را بفرست:
 
 ~~~text
-Install Codex Context Optimizer into the CURRENT project from:
+Install or update Codex Context Optimizer in the CURRENT project from:
 https://github.com/TIR3D4/codex-context-optimizer
 
-Use prompts/install-and-run.md from that repository as the installation instructions.
-Detect my OS and available tools, install it safely without overwriting application code, preserve any existing AGENTS.md, then follow the generated .codex-context/SETUP.md and continue with my task.
+Set it up automatically, preserve all existing project code and instructions, then continue with my task.
 
 My task:
-خطای 500 در API لاگین را پیدا و اصلاح کن.
+<کار موردنظر را اینجا بنویس>
 ~~~
 
 تمام.
 
-Codex خودش سیستم‌عامل و ابزارهای موجود را تشخیص می‌دهد و لازم نیست کاربر بداند Bash، PowerShell یا Git Bash دارد یا نه.
+بعد از نصب، Codex را کاملاً عادی استفاده کن. لازم نیست خودت `report`، `doctor`، benchmark، handoff یا دستورهای مدیریت context را اجرا کنی.
 
-## چه کاری خودکار انجام می‌شود؟
-
-- تشخیص پروژه جدید یا موجود
-- حفظ کد اصلی برنامه
-- حفظ AGENTS.md و دستورالعمل‌های موجود
+Optimizer پشت‌صحنه این کارها را مدیریت می‌کند:
+- مسیریابی فشرده داخل پروژه
+- حفظ AGENTS.md قبلی
 - آماده‌سازی Atlas در صورت امکان
-- ساخت context فشرده
-- آماده‌سازی اندازه‌گیری مصرف، benchmark و handoff
-- اولویت‌دادن به کیفیت و صحت نتیجه نسبت به کاهش توکن
+- قوانین کاهش context
+- بررسی روند مصرف
+- بررسی فشار context در مرزهای منطقی task
+- آماده‌سازی handoff وقتی چت جدید واقعاً مفید باشد
 
-اصل پروژه:
+اگر چت جدید لازم باشد، Codex باید خیلی کوتاه بهت بگوید. اگر لازم نباشد، optimizer مزاحم روند عادی کار نمی‌شود.
 
-> با حداقل context کافی شروع کن و هر زمان صحت نتیجه نیاز داشت، context را گسترش بده.
+## پروژه جدید یا پروژه قدیمی؟
+
+فرقی ندارد.
+
+**همان یک Prompt بالا** را بفرست. خودش تشخیص می‌دهد.
 
 ## اگر چت قدیمی Codex داری
 
-برای بهترین نتیجه، بعد از نصب یک چت جدید باز کن.
-
-اگر می‌خواهی همان چت قدیمی را ادامه بدهی:
+بعد از نصب، اگر می‌خواهی همان چت قدیمی را ادامه بدهی فقط یک بار بفرست:
 
 ~~~text
 Follow .codex-context/REFRESH_OLD_CHAT.md, then continue the current task.
 ~~~
 
+اگر optimizer تشخیص بدهد context خیلی سنگین شده، بهتر است در مرز مناسب task یک چت جدید باز شود.
+
 ## ChatGPT Work
 
-بعد از نصب، داخل Work بفرست:
+همان نصب، فایل‌های context سبک برای Work را هم آماده می‌کند.
+
+داخل Work بفرست:
 
 ~~~text
 Follow .codex-context/WORK_SETUP.md, using the .context files as compact navigation.
 ~~~
 
-## نصب با ترمینال — اختیاری
+<details>
+<summary><strong>تنظیمات و ابزارهای پیشرفته</strong></summary>
 
-اگر خودت ترجیح می‌دهی با command نصب کنی:
+کاربر عادی به این دستورها نیازی ندارد:
+
+~~~powershell
+python .codex-context\tools\codex-context.py report --repo .
+python .codex-context\tools\codex-context.py doctor --repo .
+python .codex-context\tools\codex-context.py fresh-start --repo .
+python .codex-context\tools\codex-context.py analyze --repo .
+~~~
+
+نصب اختیاری با ترمینال:
 
 ~~~bash
 curl -fsSL https://raw.githubusercontent.com/TIR3D4/codex-context-optimizer/main/install.sh | bash
 ~~~
 
-این روش اختیاری است. برای سادگی و سازگاری با ویندوز، روش نصب از داخل Codex پیشنهاد می‌شود.
-
-## ببین واقعاً چقدر تاثیر داشته
-
-فقط همین یک دستور را بزن:
-
-~~~powershell
-python .codex-context\tools\codex-context.py report --repo .
-~~~
-
-گزارش جدید نشان می‌دهد:
-- روند زنده قبل/بعد؛
-- همه responseهای بعد از optimizer، نه فقط یک benchmark ثابت؛
-- مصرف session آخر؛
-- فشار context window؛
-- بهتر یا بدتر شدن درصد صرفه‌جویی نسبت به گزارش قبلی؛
-- پیشنهاد چت جدید وقتی context به HIGH یا CRITICAL برسد.
-
-مثلاً:
-
-~~~text
-Estimated saving:       22.9% per response
-Context pressure:       HIGH
-Since last report:      declined 7.1 percentage points
-
-Recommended action:
-python .codex-context\tools\codex-context.py fresh-start --repo .
-~~~
-
-برای بررسی سلامت setup:
-
-~~~powershell
-python .codex-context\tools\codex-context.py doctor --repo .
-~~~
-
-اگر چت طولانی و سنگین شد:
-
-~~~powershell
-python .codex-context\tools\codex-context.py fresh-start --repo .
-~~~
-
-این دستور یک handoff فشرده بر اساس وضعیت Git می‌سازد و متن آماده برای شروع چت جدید را نمایش می‌دهد.
-
-> درصد بالای Cached Input به‌تنهایی بد نیست. معیار مهم‌تر برای ما رشد مصرف متوسط هر response و میزان پرشدن context window است.
-
-اگر خواستی ساختار repository را جدا بررسی کنی:
-
-~~~powershell
-python .codex-context\tools\codex-context.py analyze --repo .
-~~~
-
-## مستندات
-
-- [Prompt نصب مستقیم از داخل چت](prompts/install-and-run.md)
+مستندات:
+- [Automatic Mode](prompts/AUTO_MODE.md)
 - [روش کار](docs/methodology.md)
-- [Benchmark](docs/benchmarking.md)
 - [حفظ کیفیت](docs/quality-guardrails.md)
+- [فشار Context](docs/context-pressure.md)
 - [چت‌های قدیمی](docs/existing-chats.md)
 - [ChatGPT Work](docs/work-mode.md)
-- [فشار Context و Fresh Start](docs/context-pressure.md)
 - [Integrationهای اختیاری](docs/integrations.md)
+
+</details>
 
 ## مجوز
 
