@@ -4,71 +4,79 @@
 
 Reduce unnecessary Codex context and token usage **without sacrificing result quality**.
 
-## Quick start
+## Easiest install — paste one prompt into Codex
 
-Run this **inside your project folder**:
-
-~~~bash
-curl -fsSL https://raw.githubusercontent.com/TIR3D4/codex-context-optimizer/main/install.sh | bash
-~~~
-
-That's it.
-
-The installer automatically detects whether the project is **new** or **already existing**, and prepares the correct setup without overwriting your application code.
-
-Then open the project in a **new Codex chat** and send:
+Open your project in Codex and paste this:
 
 ~~~text
-Follow .codex-context/SETUP.md, then continue with my task.
+Install Codex Context Optimizer into the CURRENT project from:
+https://github.com/TIR3D4/codex-context-optimizer
+
+Use prompts/install-and-run.md from that repository as the installation instructions.
+Detect my OS and available tools, install it safely without overwriting application code, preserve any existing AGENTS.md, then follow the generated .codex-context/SETUP.md and continue with my task.
 ~~~
 
-Now write your task normally.
+Then add your task under it.
 
 Example:
 
 ~~~text
-Follow .codex-context/SETUP.md, then continue with my task.
+Install Codex Context Optimizer into the CURRENT project from:
+https://github.com/TIR3D4/codex-context-optimizer
 
-Add rate limiting to the login API.
+Use prompts/install-and-run.md from that repository as the installation instructions.
+Detect my OS and available tools, install it safely without overwriting application code, preserve any existing AGENTS.md, then follow the generated .codex-context/SETUP.md and continue with my task.
+
+My task:
+Fix the login API 500 error.
 ~~~
 
-## What it does
+That's it. Codex handles Windows, macOS or Linux using the tools available in its environment.
 
-It automatically prepares a low-context workflow using:
+## What happens automatically?
 
-- Atlas repository map
-- compact AGENTS.md guidance
-- safe handling of existing project instructions
-- Codex usage measurement
-- before/after benchmarks
-- compact handoffs for long chats
-- optional ChatGPT Work context files
+The installer workflow:
+- detects whether the project is new or existing;
+- preserves application code;
+- preserves existing AGENTS.md/project instructions;
+- prepares Atlas when available;
+- creates compact context files;
+- enables usage analysis, benchmarks and handoffs;
+- keeps correctness more important than token reduction.
 
-The core rule is simple:
+Core rule:
 
-> Use the minimum sufficient context, and expand it whenever correctness requires more.
+> Use the minimum sufficient context, then expand whenever correctness requires more.
 
 ## Already have old Codex chats?
 
-You can keep using them. Send this once in the old chat:
+For the cleanest result, open a new chat after installation.
+
+If you want to continue an old chat, send:
 
 ~~~text
 Follow .codex-context/REFRESH_OLD_CHAT.md, then continue the current task.
 ~~~
 
-For the cleanest and lowest-context result, a **new chat is still recommended** after installation.
+## ChatGPT Work
 
-## Using ChatGPT Work instead of Codex?
-
-After the same install command, send this in Work:
+After installation, in Work send:
 
 ~~~text
 Follow .codex-context/WORK_SETUP.md, using the .context files as compact navigation.
 ~~~
 
-## Measure token usage
+## Optional command-line install
 
-After installation:
+If you prefer the terminal, from the project root:
+
+~~~bash
+curl -fsSL https://raw.githubusercontent.com/TIR3D4/codex-context-optimizer/main/install.sh | bash
+~~~
+
+This is optional. The prompt-first method above is recommended for simplicity and cross-platform use.
+
+## Measure Codex usage
 
 ~~~bash
 python3 .codex-context/tools/codex-context.py usage
@@ -80,60 +88,14 @@ Analyze project context:
 python3 .codex-context/tools/codex-context.py analyze --repo .
 ~~~
 
-Benchmark before/after usage:
+## Documentation
 
-~~~bash
-python3 .codex-context/tools/codex-context.py benchmark-start before --repo .
-# run a representative Codex task
-python3 .codex-context/tools/codex-context.py benchmark-end before --repo .
-~~~
-
-Then repeat with an `after` benchmark and compare:
-
-~~~bash
-python3 .codex-context/tools/codex-context.py benchmark-compare before after --repo .
-~~~
-
-Token reduction is only considered successful if correctness and validation quality are preserved.
-
-<details>
-<summary><strong>Advanced usage</strong></summary>
-
-### Force new-project mode
-
-~~~bash
-curl -fsSL https://raw.githubusercontent.com/TIR3D4/codex-context-optimizer/main/install.sh | bash -s -- --mode new
-~~~
-
-### Force existing-project mode
-
-~~~bash
-curl -fsSL https://raw.githubusercontent.com/TIR3D4/codex-context-optimizer/main/install.sh | bash -s -- --mode existing
-~~~
-
-### Install into another directory
-
-~~~bash
-curl -fsSL https://raw.githubusercontent.com/TIR3D4/codex-context-optimizer/main/install.sh | bash -s -- --target /path/to/project
-~~~
-
-### Documentation
-
+- [Install-from-chat prompt](prompts/install-and-run.md)
 - [Methodology](docs/methodology.md)
 - [Benchmarking](docs/benchmarking.md)
 - [Quality guardrails](docs/quality-guardrails.md)
 - [Existing chats](docs/existing-chats.md)
 - [ChatGPT Work](docs/work-mode.md)
-
-### Upstream projects
-
-- Atlas: https://github.com/fkenmar/atlas
-- agents-md-generator: https://github.com/nguyenthedat123/agents-md-generator
-- OpenAI Codex: https://github.com/openai/codex
-
-</details>
-
-> Security note: if you do not want to pipe a remote script directly to Bash, inspect [install.sh](install.sh) first or clone the repository and run it locally.
 
 ## License
 
