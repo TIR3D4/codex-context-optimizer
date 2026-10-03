@@ -97,6 +97,7 @@ fi
 # Public, self-contained prompts copied into the target project.
 cp "$TOOL_HOME/prompts/existing-chat-refresh.md" "$TARGET/.codex-context/REFRESH_OLD_CHAT.md"
 cp "$TOOL_HOME/prompts/work-one-shot-setup.md" "$TARGET/.codex-context/WORK_SETUP.md"
+cp "$TOOL_HOME/prompts/AUTO_MODE.md" "$TARGET/.codex-context/AUTO_MODE.md"
 
 # New projects can safely start from the compact template.
 # Existing projects keep their current AGENTS.md untouched until Codex performs a semantic merge.
@@ -154,7 +155,7 @@ Mode detected: $MODE
 
 CODEX — NEW CHAT
 Send only:
-Follow .codex-context/SETUP.md, then continue with my task.
+Read .codex-context/SETUP.md and .codex-context/AUTO_MODE.md, then continue with my task.
 
 CODEX — OLD CHAT
 Send only:
@@ -190,7 +191,7 @@ echo "Target: $TARGET"
 echo "Mode:   $MODE"
 echo
 echo "NEW Codex chat:"
-echo "  Follow .codex-context/SETUP.md, then continue with my task."
+echo "  Read .codex-context/SETUP.md and .codex-context/AUTO_MODE.md, then continue with my task."
 echo
 echo "OLD Codex chat:"
 echo "  Follow .codex-context/REFRESH_OLD_CHAT.md, then continue the current task."
