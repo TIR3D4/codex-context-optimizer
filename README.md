@@ -4,137 +4,89 @@
 
 Reduce unnecessary Codex context and token usage **without sacrificing result quality**.
 
-## Easiest install — paste one prompt into Codex
+## Use it in one step
 
 Open your project in Codex and paste this:
 
 ~~~text
-Install Codex Context Optimizer into the CURRENT project from:
+Install or update Codex Context Optimizer in the CURRENT project from:
 https://github.com/TIR3D4/codex-context-optimizer
 
-Use prompts/install-and-run.md from that repository as the installation instructions.
-Detect my OS and available tools, install it safely without overwriting application code, preserve any existing AGENTS.md, then follow the generated .codex-context/SETUP.md and continue with my task.
-~~~
-
-Then add your task under it.
-
-Example:
-
-~~~text
-Install Codex Context Optimizer into the CURRENT project from:
-https://github.com/TIR3D4/codex-context-optimizer
-
-Use prompts/install-and-run.md from that repository as the installation instructions.
-Detect my OS and available tools, install it safely without overwriting application code, preserve any existing AGENTS.md, then follow the generated .codex-context/SETUP.md and continue with my task.
+Set it up automatically, preserve all existing project code and instructions, then continue with my task.
 
 My task:
-Fix the login API 500 error.
+<WRITE YOUR TASK HERE>
 ~~~
 
-That's it. Codex handles Windows, macOS or Linux using the tools available in its environment.
+That's it.
 
-## What happens automatically?
+After installation, use Codex normally. You do **not** need to manually run reports, benchmarks, doctor checks, handoffs, or context commands.
 
-The installer workflow:
-- detects whether the project is new or existing;
-- preserves application code;
-- preserves existing AGENTS.md/project instructions;
-- prepares Atlas when available;
-- creates compact context files;
-- enables usage analysis, benchmarks and handoffs;
-- keeps correctness more important than token reduction.
+The optimizer quietly handles:
+- compact repository navigation;
+- existing AGENTS.md preservation;
+- Atlas setup when available;
+- context-efficiency rules;
+- usage trend tracking;
+- context-pressure checks at sensible task boundaries;
+- compact handoff preparation when a fresh chat would materially help.
 
-Core rule:
+If a new chat is recommended, Codex should tell you with one short instruction. Otherwise, the optimizer stays out of the way.
 
-> Use the minimum sufficient context, then expand whenever correctness requires more.
+## Existing project or new project?
 
-## Already have old Codex chats?
+Same prompt.
 
-For the cleanest result, open a new chat after installation.
+The installer detects it automatically.
 
-If you want to continue an old chat, send:
+## Already have an old Codex chat?
+
+After installation, you may continue it by sending once:
 
 ~~~text
 Follow .codex-context/REFRESH_OLD_CHAT.md, then continue the current task.
 ~~~
 
+For the best context efficiency, start a new chat at a clean task boundary when Codex recommends it.
+
 ## ChatGPT Work
 
-After installation, in Work send:
+The same installation also prepares a compact `.context/` layer for Work.
+
+In Work, send:
 
 ~~~text
 Follow .codex-context/WORK_SETUP.md, using the .context files as compact navigation.
 ~~~
 
-## Optional command-line install
+<details>
+<summary><strong>Advanced / diagnostics</strong></summary>
 
-If you prefer the terminal, from the project root:
+Normal users do not need these commands.
+
+~~~bash
+python .codex-context/tools/codex-context.py report --repo .
+python .codex-context/tools/codex-context.py doctor --repo .
+python .codex-context/tools/codex-context.py fresh-start --repo .
+python .codex-context/tools/codex-context.py analyze --repo .
+~~~
+
+Optional terminal installer:
 
 ~~~bash
 curl -fsSL https://raw.githubusercontent.com/TIR3D4/codex-context-optimizer/main/install.sh | bash
 ~~~
 
-This is optional. The prompt-first method above is recommended for simplicity and cross-platform use.
-
-## Check whether it is actually helping
-
-Use one command:
-
-~~~bash
-python .codex-context/tools/codex-context.py report --repo .
-~~~
-
-The report now shows:
-- live before/after token trend;
-- all post-optimizer responses, not a frozen benchmark;
-- latest-session average usage;
-- context-window pressure;
-- saving drift since the previous report;
-- a fresh-chat recommendation when pressure becomes HIGH or CRITICAL.
-
-Example:
-
-~~~text
-Estimated saving:       22.9% per response
-Context pressure:       HIGH
-Since last report:      declined 7.1 percentage points
-
-Recommended action:
-python .codex-context\tools\codex-context.py fresh-start --repo .
-~~~
-
-Run a health check at any time:
-
-~~~bash
-python .codex-context/tools/codex-context.py doctor --repo .
-~~~
-
-When a long thread becomes heavy:
-
-~~~bash
-python .codex-context/tools/codex-context.py fresh-start --repo .
-~~~
-
-It creates a compact Git-aware handoff and prints the exact prompt for the new Codex chat.
-
-> A high cached-input percentage is not automatically a problem. The optimizer focuses on average tokens per response and active context-window pressure.
-
-Analyze repository structure separately if needed:
-
-~~~bash
-python .codex-context/tools/codex-context.py analyze --repo .
-~~~
-
-## Documentation
-
-- [Install-from-chat prompt](prompts/install-and-run.md)
+Documentation:
+- [Automatic mode](prompts/AUTO_MODE.md)
 - [Methodology](docs/methodology.md)
-- [Benchmarking](docs/benchmarking.md)
 - [Quality guardrails](docs/quality-guardrails.md)
+- [Context pressure](docs/context-pressure.md)
 - [Existing chats](docs/existing-chats.md)
 - [ChatGPT Work](docs/work-mode.md)
-- [Context pressure & fresh starts](docs/context-pressure.md)
 - [Optional integrations](docs/integrations.md)
+
+</details>
 
 ## License
 
