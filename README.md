@@ -17,6 +17,70 @@ It combines:
 - compact **handoffs** for fresh threads;
 - a small **.context/** layer for Work.
 
+## One-command public install
+
+You do **not** need access to the maintainer's ChatGPT account. This works for any user who can run shell commands in their project directory.
+
+### Starting a brand-new project
+
+Create/open the project directory, then run:
+
+~~~bash
+curl -fsSL https://raw.githubusercontent.com/TIR3D4/codex-context-optimizer/main/install.sh | bash -s -- --mode new
+~~~
+
+Then open that project in a new Codex chat and send only:
+
+~~~text
+Follow .codex-context/SETUP.md, then continue with my task.
+~~~
+
+### Applying it to an existing project
+
+From the existing repository root:
+
+~~~bash
+curl -fsSL https://raw.githubusercontent.com/TIR3D4/codex-context-optimizer/main/install.sh | bash -s -- --mode existing
+~~~
+
+Then open a new Codex chat and send only:
+
+~~~text
+Follow .codex-context/SETUP.md, then continue with my task.
+~~~
+
+The existing-project mode preserves the current AGENTS.md until Codex can merge it semantically and safely.
+
+### Let the installer decide
+
+If you do not want to choose a mode:
+
+~~~bash
+curl -fsSL https://raw.githubusercontent.com/TIR3D4/codex-context-optimizer/main/install.sh | bash
+~~~
+
+The bootstrap checks whether the target repository already contains meaningful tracked history and selects `new` or `existing`.
+
+### Existing old chat
+
+If you want to keep working in a chat that was already open before installation, send only:
+
+~~~text
+Follow .codex-context/REFRESH_OLD_CHAT.md, then continue the current task.
+~~~
+
+### ChatGPT Work
+
+After the same bootstrap, in Work send:
+
+~~~text
+Follow .codex-context/WORK_SETUP.md, using the .context files as compact navigation.
+~~~
+
+The installer copies the required prompts and helper scripts **into the target project**, so future users do not need this repository open in another chat.
+
+> Security note: piping a remote script directly to `bash` is convenient, but users who want to inspect it first can open `install.sh` on GitHub or clone this repository and run it locally.
+
 ## Core rule
 
 The project does **not** minimize tokens at any cost.
