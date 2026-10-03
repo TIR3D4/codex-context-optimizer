@@ -597,7 +597,9 @@ def parser():
     x=s.add_parser("benchmark-end"); x.add_argument("name"); x.add_argument("--repo"); x.add_argument("--sessions"); x.set_defaults(fn=cmd_end)
     x=s.add_parser("benchmark-compare"); x.add_argument("before"); x.add_argument("after"); x.add_argument("--repo"); x.set_defaults(fn=cmd_compare)
     x=s.add_parser("report"); x.add_argument("--repo"); x.add_argument("--sessions"); x.set_defaults(fn=cmd_report)
-    x=s.add_parser("handoff"); x.add_argument("--repo"); x.add_argument("--output"); x.set_defaults(fn=cmd_handoff)\n    x=s.add_parser("fresh-start"); x.add_argument("--repo"); x.add_argument("--output"); x.set_defaults(fn=cmd_fresh_start)\n    x=s.add_parser("doctor"); x.add_argument("--repo"); x.add_argument("--sessions"); x.set_defaults(fn=cmd_doctor)
+    x=s.add_parser("handoff"); x.add_argument("--repo"); x.add_argument("--output"); x.set_defaults(fn=cmd_handoff)
+    x=s.add_parser("fresh-start"); x.add_argument("--repo"); x.add_argument("--output"); x.set_defaults(fn=cmd_fresh_start)
+    x=s.add_parser("doctor"); x.add_argument("--repo"); x.add_argument("--sessions"); x.set_defaults(fn=cmd_doctor)
     return p
 
 def main():
