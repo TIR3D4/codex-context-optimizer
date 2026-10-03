@@ -1,29 +1,20 @@
-Install Codex Context Optimizer into the CURRENT project from:
+Install or update Codex Context Optimizer in the CURRENT project from:
 
 https://github.com/TIR3D4/codex-context-optimizer
 
-Do the installation yourself using the tools/shell available in this environment.
+Set it up automatically for this project.
 
-Requirements:
-1. Detect the operating system and available shell/tools first.
-2. Do not require Bash specifically. On Windows, use PowerShell/Git/Python or another available native method.
-3. Detect automatically whether this is a new project or an existing project.
-4. Never overwrite application/business source code.
-5. Preserve any existing AGENTS.md and project instructions. Merge later; do not blindly replace them.
-6. Copy only the optimizer files needed by this project into:
-   - .codex-context/
-   - .context/
-   - AGENTS.md only if appropriate and safe
-   - atlas-map.md when Atlas is available
-7. Install or reuse Atlas safely if possible. Do not make destructive environment changes.
-8. Use the optimizer's existing-project setup for an existing repository and its new-project setup for a new repository.
-9. After installation, read and follow .codex-context/SETUP.md.
-10. Then continue with my task below.
-11. If installation is blocked by a missing permission/tool, explain the exact blocker and use the safest available fallback.
-12. Preserve quality over token reduction. Expand context whenever correctness requires it.
-13. At the end of installation, run the optimizer doctor and report commands when available.
-14. If context pressure is HIGH or CRITICAL, prepare a compact handoff and recommend a fresh chat at a clean task boundary instead of forcing the current thread to continue.
-15. Do not automatically install optional third-party context tools such as CatchUp, Codex Compressor, or proxy-based context managers. They may be suggested separately.
+Rules:
+- Detect the OS and available tools yourself.
+- Detect whether this is a new or existing project.
+- Preserve all application code, existing AGENTS.md content, and project configuration.
+- Install/update only the optimizer files and safe project guidance.
+- Use Atlas when available, but never treat its map as authoritative source code.
+- Enable the optimizer's automatic mode so I do not need to manually run report, doctor, benchmark, handoff, or fresh-start commands during normal work.
+- Keep token reduction secondary to correctness.
+- When context becomes inefficient, handle the handoff preparation automatically and only tell me when a new chat would materially help.
+- Do not install optional third-party tools automatically.
+- After setup, continue with my task normally.
 
 My task:
 <WRITE YOUR TASK HERE>
