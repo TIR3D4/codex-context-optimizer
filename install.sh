@@ -84,10 +84,17 @@ mkdir -p "$TARGET/.codex-context/tools"
 cp "$TOOL_HOME/scripts/codex-context.py" "$TARGET/.codex-context/tools/codex-context.py"
 cp "$TOOL_HOME/scripts/work-context.py" "$TARGET/.codex-context/tools/work-context.py"
 
+# Public, self-contained prompts copied into the target project.
+cp "$TOOL_HOME/prompts/existing-chat-refresh.md" "$TARGET/.codex-context/REFRESH_OLD_CHAT.md"
+cp "$TOOL_HOME/prompts/work-one-shot-setup.md" "$TARGET/.codex-context/WORK_SETUP.md"
+
+# New projects can safely start from the compact template.
+# Existing projects keep their current AGENTS.md untouched until Codex performs a semantic merge.
 if [ "$MODE" = "new" ] && [ ! -e "$TARGET/AGENTS.md" ]; then
   cp "$TOOL_HOME/templates/AGENTS.md" "$TARGET/AGENTS.md"
 fi
 
+# Seed Work context files without overwriting project-owned content.
 mkdir -p "$TARGET/.context"
 for f in PROJECT_CONTEXT.md CURRENT_TASK.md DECISIONS.md SOURCE_INDEX.md; do
   if [ ! -e "$TARGET/.context/$f" ]; then
@@ -95,6 +102,7 @@ for f in PROJECT_CONTEXT.md CURRENT_TASK.md DECISIONS.md SOURCE_INDEX.md; do
   fi
 done
 
+# Atlas is optional at bootstrap time. Install only through pipx when available.
 if ! command -v atlas >/dev/null 2>&1 && command -v pipx >/dev/null 2>&1; then
   pipx install --pre atlas-map >/dev/null 2>&1 || true
 fi
@@ -124,6 +132,8 @@ Before implementing substantial features:
 6. Keep .context/PROJECT_CONTEXT.md and .context/CURRENT_TASK.md compact if using ChatGPT Work.
 7. Do not add large architecture dumps, logs, or generated content to persistent context.
 8. Preserve result quality over token reduction.
+9. When the project gains real structure, refresh atlas-map.md.
+10. Never refuse to inspect additional source files when correctness requires them.
 
 For this first task, ask at most 5 concise questions only if they materially affect architecture, constraints, or validation. Then proceed with the user's task.
 EOF
@@ -137,11 +147,12 @@ Send only:
 Follow .codex-context/SETUP.md, then continue with my task.
 
 CODEX — OLD CHAT
-Send:
-The repository context setup changed. Re-read AGENTS.md, atlas-map.md if present, and .codex-context/SETUP.md. Preserve the current task and git changes; do not rescan the whole repo.
+Send only:
+Follow .codex-context/REFRESH_OLD_CHAT.md, then continue the current task.
 
-WORK
-Ask Work to use .context/PROJECT_CONTEXT.md, .context/CURRENT_TASK.md and .context/SOURCE_INDEX.md, expanding to original sources whenever correctness requires it.
+CHATGPT WORK
+Send only:
+Follow .codex-context/WORK_SETUP.md, using the .context files as compact navigation.
 
 TOOLS
 Analyze repository context:
@@ -159,8 +170,14 @@ echo "Codex Context Optimizer installed."
 echo "Target: $TARGET"
 echo "Mode:   $MODE"
 echo
-echo "Next step for a NEW Codex chat:"
+echo "NEW Codex chat:"
 echo "  Follow .codex-context/SETUP.md, then continue with my task."
 echo
-echo "Details saved to:"
+echo "OLD Codex chat:"
+echo "  Follow .codex-context/REFRESH_OLD_CHAT.md, then continue the current task."
+echo
+echo "ChatGPT Work:"
+echo "  Follow .codex-context/WORK_SETUP.md, using the .context files as compact navigation."
+echo
+echo "Details:"
 echo "  $TARGET/.codex-context/NEXT.txt"
