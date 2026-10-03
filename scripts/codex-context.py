@@ -1,0 +1,298 @@
+#!/usr/bin/env python3
+"""Codex Context Optimizer: analyze repositories and measure local Codex usage."""
+
+from __future__ import annotations
+import argparse, datetime as dt, json, os, pathlib, subprocess, sys
+from dataclasses import dataclass, asdict
+from typing import Any
+
+STATE_DIR = ".codex-context"
+CODE_EXTS = {".py",".js",".jsx",".ts",".tsx",".go",".rs",".java",".kt",".c",".h",".cc",".cpp",".hpp",".cs",".php",".rb",".swift",".sh",".sql",".vue",".svelte"}
+NOISE_DIRS = {"node_modules","vendor",".venv","venv","dist","build","coverage",".cache","__pycache__",".pytest_cache",".mypy_cache",".next",".nuxt",".turbo","target","logs","log","tmp","temp"}
+
+@dataclass
+class Usage:
+    responses:int=0
+    input_tokens:int=0
+    cached_input_tokens:int=0
+    cache_write_input_tokens:int=0
+    output_tokens:int=0
+    reasoning_output_tokens:int=0
+    total_tokens:int=0
+    max_last_input_tokens:int=0
+    max_context_window:int=0
+    sessions:int=0
+    source:str="none"
+
+    @property
+    def non_cached_input_tokens(self):
+        return max(0, self.input_tokens-self.cached_input_tokens)
+
+    @property
+    def cached_ratio(self):
+        return self.cached_input_tokens/self.input_tokens if self.input_tokens else 0.0
+
+    @property
+    def avg_total_per_response(self):
+        return self.total_tokens/self.responses if self.responses else 0.0
+
+    def minus(self, other):
+        return Usage(
+            responses=max(0,self.responses-other.responses),
+            input_tokens=max(0,self.input_tokens-other.input_tokens),
+            cached_input_tokens=max(0,self.cached_input_tokens-other.cached_input_tokens),
+            cache_write_input_tokens=max(0,self.cache_write_input_tokens-other.cache_write_input_tokens),
+            output_tokens=max(0,self.output_tokens-other.output_tokens),
+            reasoning_output_tokens=max(0,self.reasoning_output_tokens-other.reasoning_output_tokens),
+            total_tokens=max(0,self.total_tokens-other.total_tokens),
+            max_last_input_tokens=self.max_last_input_tokens,
+            max_context_window=self.max_context_window,
+            sessions=max(0,self.sessions-other.sessions),
+            source=self.source)
+
+def run(cmd, cwd=None):
+    p=subprocess.run(cmd,cwd=cwd,text=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+    if p.returncode:
+        raise RuntimeError(p.stderr.strip() or "command failed")
+    return p.stdout
+
+def root_for(path=None):
+    base=pathlib.Path(path or ".").expanduser().resolve()
+    try:
+        return pathlib.Path(run(["git","rev-parse","--show-toplevel"],base).strip())
+    except Exception:
+        return base
+
+def est_tokens(n):
+    return max(1,round(n/4))
+
+def tracked_files(root):
+    try:
+        raw=subprocess.run(["git","ls-files","-z"],cwd=root,stdout=subprocess.PIPE,check=True).stdout
+        return [root/p.decode("utf-8","replace") for p in raw.split(b"\0") if p]
+    except Exception:
+        return [p for p in root.rglob("*") if p.is_file() and ".git" not in p.parts]
+
+def cmd_analyze(a):
+    root=root_for(a.repo)
+    files=tracked_files(root)
+    code=[p for p in files if p.suffix.lower() in CODE_EXTS]
+    source_bytes=0; large=[]
+    for p in code:
+        try: size=p.stat().st_size
+        except OSError: continue
+        source_bytes+=size
+        if size>=a.large_file_bytes:
+            large.append((size,str(p.relative_to(root))))
+    agents=root/"AGENTS.md"; atlas=root/"atlas-map.md"
+    ab=agents.stat().st_size if agents.exists() else 0
+    mb=atlas.stat().st_size if atlas.exists() else 0
+    warnings=[]
+    if not agents.exists(): warnings.append("No root AGENTS.md found.")
+    elif est_tokens(ab)>a.agents_token_warn: warnings.append("AGENTS.md is large persistent context.")
+    if not atlas.exists(): warnings.append("No atlas-map.md found.")
+    elif est_tokens(mb)>a.atlas_token_warn: warnings.append("atlas-map.md is larger than the recommended bounded map.")
+    if large: warnings.append(str(len(large))+" tracked source file(s) are unusually large.")
+    report={
+      "repo":str(root),"tracked_files":len(files),"source_files":len(code),
+      "source_bytes":source_bytes,"estimated_source_tokens":est_tokens(source_bytes),
+      "agents_exists":agents.exists(),"estimated_agents_tokens":est_tokens(ab) if ab else 0,
+      "atlas_exists":atlas.exists(),"estimated_atlas_tokens":est_tokens(mb) if mb else 0,
+      "noise_dirs_present":sorted(x for x in NOISE_DIRS if (root/x).exists()),
+      "large_source_files":[{"path":p,"bytes":s} for s,p in sorted(large,reverse=True)[:20]],
+      "warnings":warnings}
+    if a.json:
+        print(json.dumps(report,indent=2,ensure_ascii=False)); return 0
+    print("Repository context analysis\n---------------------------")
+    print("Repo:                    "+str(root))
+    print("Tracked files:           "+f"{len(files):,}")
+    print("Source files:            "+f"{len(code):,}")
+    print("Estimated source tokens: "+f"{report['estimated_source_tokens']:,}"+" (rough estimate)")
+    print("AGENTS.md:               "+("yes (~"+f"{report['estimated_agents_tokens']:,}"+" tokens)" if agents.exists() else "no"))
+    print("atlas-map.md:            "+("yes (~"+f"{report['estimated_atlas_tokens']:,}"+" tokens)" if atlas.exists() else "no"))
+    if report["noise_dirs_present"]: print("Heavy dirs present:      "+", ".join(report["noise_dirs_present"]))
+    if warnings:
+        print("\nWarnings")
+        for w in warnings: print("- "+w)
+    else: print("\nNo obvious persistent-context issues detected.")
+    return 0
+
+def session_path():
+    return pathlib.Path(os.environ.get("CODEX_HOME","~/.codex")).expanduser()/"sessions"
+
+def files_under(base):
+    return sorted(base.rglob("*.jsonl")) if base.exists() else []
+
+def usage_dict(d):
+    def n(s,c):
+        v=d.get(s,d.get(c,0)); return int(v or 0) if isinstance(v,(int,float)) else 0
+    return Usage(input_tokens=n("input_tokens","inputTokens"),cached_input_tokens=n("cached_input_tokens","cachedInputTokens"),
+      cache_write_input_tokens=n("cache_write_input_tokens","cacheWriteInputTokens"),output_tokens=n("output_tokens","outputTokens"),
+      reasoning_output_tokens=n("reasoning_output_tokens","reasoningOutputTokens"),total_tokens=n("total_tokens","totalTokens"))
+
+def modern_record(obj):
+    if not isinstance(obj,dict): return None,None
+    if obj.get("type")=="token_usage_record":
+        p=obj.get("payload") if isinstance(obj.get("payload"),dict) else obj
+        u=p.get("usage") if isinstance(p.get("usage"),dict) else None
+        return p.get("response_id") or p.get("responseId"),u
+    p=obj.get("payload")
+    if isinstance(p,dict) and p.get("type")=="token_usage_record":
+        return p.get("response_id") or p.get("responseId"), p.get("usage") if isinstance(p.get("usage"),dict) else None
+    return None,None
+
+def token_count(obj):
+    if not isinstance(obj,dict): return None,None,0
+    p=obj.get("payload")
+    if not isinstance(p,dict) or p.get("type")!="token_count": return None,None,0
+    info=p.get("info") if isinstance(p.get("info"),dict) else {}
+    return info.get("total_token_usage"),info.get("last_token_usage"),int(info.get("model_context_window") or 0)
+
+def collect(base):
+    modern=Usage(source="token_usage_record"); seen=set(); mfiles=set()
+    final={}; peaks={}; window=0
+    for path in files_under(base):
+        try:
+            fh=path.open("r",encoding="utf-8",errors="replace")
+        except OSError: continue
+        with fh:
+            for line_no,line in enumerate(fh,1):
+                try: obj=json.loads(line)
+                except Exception: continue
+                rid,ud=modern_record(obj)
+                if isinstance(ud,dict):
+                    u=usage_dict(ud); key=str(rid) if rid is not None else str(path)+":"+str(line_no)
+                    if key not in seen:
+                        seen.add(key); modern.responses+=1; mfiles.add(path)
+                        modern.input_tokens+=u.input_tokens; modern.cached_input_tokens+=u.cached_input_tokens
+                        modern.cache_write_input_tokens+=u.cache_write_input_tokens; modern.output_tokens+=u.output_tokens
+                        modern.reasoning_output_tokens+=u.reasoning_output_tokens
+                        modern.total_tokens+=u.total_tokens or u.input_tokens+u.output_tokens
+                cum,last,w=token_count(obj)
+                if isinstance(cum,dict): final[path]=usage_dict(cum)
+                if isinstance(last,dict): peaks[path]=max(peaks.get(path,0),usage_dict(last).input_tokens)
+                window=max(window,w)
+    if modern.responses:
+        modern.sessions=len(mfiles); modern.max_last_input_tokens=max(peaks.values(),default=0); modern.max_context_window=window
+        return modern
+    fallback=Usage(source="token_count cumulative fallback")
+    for u in final.values():
+        fallback.input_tokens+=u.input_tokens; fallback.cached_input_tokens+=u.cached_input_tokens
+        fallback.cache_write_input_tokens+=u.cache_write_input_tokens; fallback.output_tokens+=u.output_tokens
+        fallback.reasoning_output_tokens+=u.reasoning_output_tokens; fallback.total_tokens+=u.total_tokens or u.input_tokens+u.output_tokens
+    fallback.sessions=len(final); fallback.max_last_input_tokens=max(peaks.values(),default=0); fallback.max_context_window=window
+    return fallback
+
+def print_usage(u,title="Codex usage"):
+    print(title+"\n"+"-"*len(title))
+    print("Source:                  "+u.source)
+    print("Sessions:                "+f"{u.sessions:,}")
+    if u.responses: print("Unique responses:        "+f"{u.responses:,}")
+    print("Input tokens:            "+f"{u.input_tokens:,}")
+    print("Cached input:            "+f"{u.cached_input_tokens:,}"+" ("+f"{u.cached_ratio:.1%}"+" of input)")
+    if u.cache_write_input_tokens: print("Cache-write input:       "+f"{u.cache_write_input_tokens:,}")
+    print("Non-cached input:        "+f"{u.non_cached_input_tokens:,}")
+    print("Output tokens:           "+f"{u.output_tokens:,}")
+    print("Reasoning output:        "+f"{u.reasoning_output_tokens:,}"+" (subset of output)")
+    print("Total tokens:            "+f"{u.total_tokens:,}")
+    if u.responses: print("Avg total / response:    "+f"{u.avg_total_per_response:,.0f}")
+    if u.max_last_input_tokens: print("Peak last-turn input:    "+f"{u.max_last_input_tokens:,}")
+    if u.max_context_window:
+        print("Reported context window: "+f"{u.max_context_window:,}")
+        print("Peak context occupancy:  "+f"{u.max_last_input_tokens/u.max_context_window:.1%}")
+
+def cmd_usage(a):
+    base=pathlib.Path(a.sessions).expanduser() if a.sessions else session_path()
+    u=collect(base)
+    if a.json:
+        d=asdict(u); d.update({"non_cached_input_tokens":u.non_cached_input_tokens,"cached_ratio":u.cached_ratio,
+          "avg_total_per_response":u.avg_total_per_response,"sessions_path":str(base)})
+        print(json.dumps(d,indent=2)); return 0
+    print_usage(u)
+    if u.source.startswith("token_count"): print("\nNote: using final cumulative token_count per session because modern token_usage_record entries were not found.")
+    print("\nLocal telemetry is not an authoritative invoice or plan-quota calculation.")
+    return 0
+
+def bench_path(root,name):
+    p=root/STATE_DIR/"benchmarks"; p.mkdir(parents=True,exist_ok=True)
+    safe="".join(c if c.isalnum() or c in "-_." else "_" for c in name)
+    return p/(safe+".json")
+
+def snap(base):
+    return {"captured_at":dt.datetime.now(dt.timezone.utc).isoformat(),"sessions_path":str(base),"usage":asdict(collect(base))}
+
+def cmd_start(a):
+    root=root_for(a.repo); base=pathlib.Path(a.sessions).expanduser() if a.sessions else session_path()
+    p=bench_path(root,a.name+".start"); p.write_text(json.dumps(snap(base),indent=2),encoding="utf-8")
+    print("Benchmark '"+a.name+"' started. Run the task, then benchmark-end with the same name.")
+    return 0
+
+def cmd_end(a):
+    root=root_for(a.repo); base=pathlib.Path(a.sessions).expanduser() if a.sessions else session_path()
+    sp=bench_path(root,a.name+".start")
+    if not sp.exists(): print("Missing start snapshot.",file=sys.stderr); return 2
+    start=json.loads(sp.read_text()); end=snap(base)
+    eu=Usage(**end["usage"]); su=Usage(**start["usage"]); delta=eu.minus(su)
+    rp=bench_path(root,a.name+".result"); rp.write_text(json.dumps({"name":a.name,"start":start,"end":end,"delta":asdict(delta)},indent=2),encoding="utf-8")
+    print_usage(delta,"Benchmark result: "+a.name); return 0
+
+def load_result(root,name):
+    p=bench_path(root,name+".result")
+    if not p.exists(): raise FileNotFoundError(str(p))
+    return Usage(**json.loads(p.read_text())["delta"])
+
+def change(b,a):
+    return "n/a" if not b else f"{((a-b)/b)*100:+.1f}%"
+
+def cmd_compare(a):
+    root=root_for(a.repo)
+    try: b=load_result(root,a.before); n=load_result(root,a.after)
+    except FileNotFoundError as e: print("Missing benchmark: "+str(e),file=sys.stderr); return 2
+    rows=[("Responses",b.responses,n.responses),("Input tokens",b.input_tokens,n.input_tokens),("Cached input",b.cached_input_tokens,n.cached_input_tokens),
+      ("Non-cached input",b.non_cached_input_tokens,n.non_cached_input_tokens),("Output tokens",b.output_tokens,n.output_tokens),("Total tokens",b.total_tokens,n.total_tokens)]
+    print("Benchmark comparison: "+a.before+" -> "+a.after)
+    print(f"{'Metric':<22} {'Before':>14} {'After':>14} {'Change':>12}")
+    for label,x,y in rows: print(f"{label:<22} {x:>14,} {y:>14,} {change(x,y):>12}")
+    print("\nQuality gate: token reduction is only a success if correctness, tests and task scope are preserved.")
+    return 0
+
+def status_paths(root):
+    try: out=run(["git","status","--porcelain=v1"],root)
+    except Exception: return []
+    return [line[3:] for line in out.splitlines() if len(line)>=4]
+
+def cmd_handoff(a):
+    root=root_for(a.repo); out=root/(a.output or STATE_DIR+"/HANDOFF.md"); out.parent.mkdir(parents=True,exist_ok=True)
+    try: branch=run(["git","branch","--show-current"],root).strip() or "(detached)"
+    except Exception: branch="(unknown)"
+    try: recent=run(["git","log","-5","--oneline","--decorate=no"],root).strip()
+    except Exception: recent="(unavailable)"
+    changed=status_paths(root)
+    lines=["# Codex handoff","", "Generated: "+dt.datetime.now(dt.timezone.utc).isoformat(),"Branch: "+branch,"",
+      "## Current goal","","<fill in one or two sentences>","","## Decisions already made","","- <decision>","",
+      "## Relevant files for the next task",""]
+    lines += ["- "+p for p in changed] if changed else ["- <add only likely relevant files>"]
+    lines += ["","## Validation already performed","","- <test/check and result>","","## Remaining work","","- <next concrete step>","",
+      "## Current git status","","~~~text",("\n".join(changed) if changed else "clean working tree"),"~~~","",
+      "## Recent commits","","~~~text",recent,"~~~","","Keep this handoff compact. Do not paste logs or full diffs here.",""]
+    out.write_text("\n".join(lines),encoding="utf-8"); print("Wrote compact handoff: "+str(out)); return 0
+
+def parser():
+    p=argparse.ArgumentParser(prog="codex-context",description="Measure and reduce unnecessary Codex context usage.")
+    s=p.add_subparsers(dest="cmd",required=True)
+    x=s.add_parser("analyze"); x.add_argument("--repo"); x.add_argument("--json",action="store_true"); x.add_argument("--large-file-bytes",type=int,default=204800); x.add_argument("--agents-token-warn",type=int,default=2500); x.add_argument("--atlas-token-warn",type=int,default=3000); x.set_defaults(fn=cmd_analyze)
+    x=s.add_parser("usage"); x.add_argument("--sessions"); x.add_argument("--json",action="store_true"); x.set_defaults(fn=cmd_usage)
+    x=s.add_parser("benchmark-start"); x.add_argument("name"); x.add_argument("--repo"); x.add_argument("--sessions"); x.set_defaults(fn=cmd_start)
+    x=s.add_parser("benchmark-end"); x.add_argument("name"); x.add_argument("--repo"); x.add_argument("--sessions"); x.set_defaults(fn=cmd_end)
+    x=s.add_parser("benchmark-compare"); x.add_argument("before"); x.add_argument("after"); x.add_argument("--repo"); x.set_defaults(fn=cmd_compare)
+    x=s.add_parser("handoff"); x.add_argument("--repo"); x.add_argument("--output"); x.set_defaults(fn=cmd_handoff)
+    return p
+
+def main():
+    a=parser().parse_args()
+    try: return a.fn(a)
+    except KeyboardInterrupt: return 130
+    except Exception as e: print("error: "+str(e),file=sys.stderr); return 1
+
+if __name__=="__main__":
+    raise SystemExit(main())
