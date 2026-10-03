@@ -197,6 +197,16 @@ At the end:
 
 Old chats remain usable; they simply may carry more historical context and earlier assumptions.
 
+## Automatic mode
+
+If `.codex-context/AUTO_MODE.md` exists:
+- read it;
+- keep its behavior active for normal future tasks;
+- merge only the small, durable automatic-mode rules into AGENTS.md when useful;
+- do not require the user to manually run optimizer maintenance commands;
+- run health/telemetry checks only at sensible task boundaries;
+- only surface optimizer details when the user asks or when a fresh chat would materially help.
+
 ## Phase 9 — verification
 
 Before finishing, verify:
@@ -211,6 +221,7 @@ Before finishing, verify:
 8. Future normal tasks do not require rerunning agents-md-generator.
 9. No source directory was excluded only to chase a smaller token number.
 10. Codex is explicitly allowed to expand context when needed for correctness.
+11. Automatic mode is active when .codex-context/AUTO_MODE.md is present.
 
 ## Final report
 
