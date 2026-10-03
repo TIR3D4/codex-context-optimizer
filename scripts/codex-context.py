@@ -262,83 +262,87 @@ def cmd_report(a):
     base=pathlib.Path(a.sessions).expanduser() if a.sessions else session_path()
     current=collect(base)
 
-    baseline_file=root/STATE_DIR/"install-baseline.json"
     baseline=None
-    mode=""
+    baseline_label=None
 
+    # Best source: snapshot captured automatically when the optimizer was installed.
+    baseline_file=root/STATE_DIR/"install-baseline.json"
     if baseline_file.exists():
         try:
             data=json.loads(baseline_file.read_text(encoding="utf-8"))
             raw=data.get("usage",data)
             baseline=Usage(**{k:v for k,v in raw.items() if k in Usage.__dataclass_fields__})
-            mode="install baseline"
+            baseline_label="install baseline"
         except Exception:
             baseline=None
 
-    optimized_result=None
-    try:
-        optimized_result=load_result(root,"optimized")
-    except Exception:
-        optimized_result=None
+    # Backward-compatible fallback for projects installed before automatic baselines:
+    # use the START snapshot of the optimized benchmark, not the frozen 6-response result.
+    # This makes every later Codex response part of the post-optimizer period.
+    if baseline is None:
+        result_path=bench_path(root,"optimized.result")
+        if result_path.exists():
+            try:
+                data=json.loads(result_path.read_text(encoding="utf-8"))
+                raw=data.get("start",{}).get("usage",{})
+                if raw:
+                    baseline=Usage(**{k:v for k,v in raw.items() if k in Usage.__dataclass_fields__})
+                    baseline_label="optimized benchmark start"
+            except Exception:
+                baseline=None
 
-    if baseline is not None and current.responses>=baseline.responses:
-        after=current.minus(baseline)
-        before_avg=baseline.avg_total_per_response
-        after_avg=after.avg_total_per_response
+    if baseline is None:
+        # First report on an older installation: start live tracking now.
+        baseline_file.parent.mkdir(parents=True,exist_ok=True)
+        baseline_file.write_text(json.dumps({
+            "captured_at":dt.datetime.now(dt.timezone.utc).isoformat(),
+            "usage":asdict(current),
+            "note":"Created automatically by report because no earlier baseline was available."
+        },indent=2),encoding="utf-8")
         print("Optimizer report")
         print("----------------")
-        print("Comparison: historical usage before install vs usage since install")
-        print("Baseline responses:       "+f"{baseline.responses:,}")
-        print("Post-install responses:   "+f"{after.responses:,}")
-        print("Before avg/response:      "+f"{before_avg:,.0f}" if before_avg else "Before avg/response:      n/a")
-        print("After avg/response:       "+f"{after_avg:,.0f}" if after_avg else "After avg/response:       n/a")
-        if before_avg and after_avg:
-            pct=((after_avg-before_avg)/before_avg)*100
-            print("Estimated change:         "+f"{pct:+.1f}%")
-            if pct < 0:
-                print("Estimated saving:         "+f"{abs(pct):.1f}% per response")
-            else:
-                print("Estimated saving:         no reduction detected yet")
-        print("Post-install total:       "+f"{after.total_tokens:,}")
-        print("Post-install cached:      "+f"{after.cached_input_tokens:,}"+" ("+f"{after.cached_ratio:.1%}"+" of input)")
+        print("Tracking baseline created now.")
+        print("Current responses:        "+f"{current.responses:,}")
+        print("Current avg/response:     "+(f"{current.avg_total_per_response:,.0f}" if current.responses else "n/a"))
         print()
-        print("Confidence: TREND, not controlled A/B.")
-        print("Use this to track direction over time; task difficulty can change the percentage.")
+        print("Keep using Codex normally. Run this same report command later.")
+        print("No manual benchmark-start/benchmark-end is required.")
         return 0
 
-    if optimized_result is not None and optimized_result.responses:
-        historical=current.minus(optimized_result)
-        before_avg=historical.avg_total_per_response
-        after_avg=optimized_result.avg_total_per_response
-        print("Optimizer report")
-        print("----------------")
-        print("Comparison: optimized benchmark vs remaining historical telemetry")
-        print("Historical responses:     "+f"{historical.responses:,}")
-        print("Optimized responses:      "+f"{optimized_result.responses:,}")
-        print("Historical avg/response:  "+f"{before_avg:,.0f}" if before_avg else "Historical avg/response:  n/a")
-        print("Optimized avg/response:   "+f"{after_avg:,.0f}")
-        if before_avg:
-            pct=((after_avg-before_avg)/before_avg)*100
-            print("Estimated change:         "+f"{pct:+.1f}%")
-            if pct < 0:
-                print("Estimated saving:         "+f"{abs(pct):.1f}% per response")
-            else:
-                print("Estimated saving:         no reduction detected yet")
-        print("Optimized total tokens:   "+f"{optimized_result.total_tokens:,}")
-        print("Optimized cached input:   "+f"{optimized_result.cached_input_tokens:,}"+" ("+f"{optimized_result.cached_ratio:.1%}"+" of input)")
-        print()
-        print("Confidence: APPROXIMATE.")
-        print("This is not a controlled A/B test; different tasks can have different token needs.")
-        return 0
+    after=current.minus(baseline)
+    before_avg=baseline.avg_total_per_response
+    after_avg=after.avg_total_per_response
 
     print("Optimizer report")
     print("----------------")
-    print("Not enough before/after data yet.")
+    print("Baseline:                 "+str(baseline_label))
+    print("Before responses:         "+f"{baseline.responses:,}")
+    print("After responses:          "+f"{after.responses:,}")
+    print("Before avg/response:      "+(f"{before_avg:,.0f}" if before_avg else "n/a"))
+    print("After avg/response:       "+(f"{after_avg:,.0f}" if after_avg else "n/a"))
+
+    if before_avg and after_avg:
+        pct=((after_avg-before_avg)/before_avg)*100
+        print("Estimated change:         "+f"{pct:+.1f}%")
+        if pct < 0:
+            print("Estimated saving:         "+f"{abs(pct):.1f}% per response")
+        else:
+            print("Estimated saving:         no reduction detected yet")
+
+    print("After total tokens:       "+f"{after.total_tokens:,}")
+    print("After cached input:       "+f"{after.cached_input_tokens:,}"+" ("+f"{after.cached_ratio:.1%}"+" of input)")
+
+    if after.responses < 10:
+        confidence="LOW — collect more post-optimizer responses"
+    elif after.responses < 30:
+        confidence="EARLY TREND"
+    else:
+        confidence="TREND"
+
     print()
-    print("Current average/response: "+(f"{current.avg_total_per_response:,.0f}" if current.responses else "n/a"))
-    print("Current total tokens:     "+f"{current.total_tokens:,}")
-    print()
-    print("For future automatic comparison, reinstall/update the optimizer once so an install baseline is saved.")
+    print("Confidence: "+confidence)
+    print("This is a live before/after trend, not a controlled A/B test.")
+    print("Different tasks can require different amounts of context.")
     return 0
 
 def status_paths(root):
