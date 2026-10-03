@@ -11,14 +11,24 @@ Fill these with verified commands from this repository only:
 
 ## Context efficiency
 
-- Use `atlas-map.md` first for repository orientation.
-- Treat the map as an index; source files remain authoritative.
+- Use `atlas-map.md` first for repository orientation when present.
+- Treat maps and summaries as indexes; source files remain authoritative.
 - Identify the smallest relevant file set before opening source files.
 - Prefer targeted symbol/path/exact-term searches over broad scans.
-- Expand context only when required.
+- Expand context whenever correctness requires it.
 - Avoid rereading unchanged files without a clear reason.
 - Use `git status` and `git diff` to understand existing work.
 - Avoid logs, caches, dependencies, generated files, build output, backups, and unrelated large files unless required.
+
+## Automatic optimizer mode
+
+- Read `.codex-context/AUTO_MODE.md` when present.
+- The user should not need to manually manage optimizer commands during normal work.
+- At sensible task boundaries, quietly check optimizer health when useful.
+- Do not run telemetry checks on every turn.
+- If context pressure becomes high, finish the current safe unit of work, prepare a compact handoff, and recommend a fresh chat only when it would materially improve efficiency.
+- Do not interrupt active work solely because a threshold was crossed.
+- Do not display token statistics unless the user asks or action is needed.
 
 ## Editing safety
 
@@ -31,11 +41,11 @@ Fill these with verified commands from this repository only:
 
 - Run the narrowest relevant check first.
 - Use verified repository commands.
-- Run expensive full-project validation only when necessary.
+- Run broader validation when risk requires it.
 
 ## Completion
 
-Report:
+Report only:
 - files changed;
 - validation performed;
-- unresolved uncertainty, if any.
+- unresolved uncertainty or an actionable context warning, if any.
