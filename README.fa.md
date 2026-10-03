@@ -4,65 +4,72 @@
 
 کاهش مصرف بی‌دلیل context و توکن در Codex **بدون قربانی‌کردن کیفیت نتیجه**.
 
-## فقط یک مرحله
+## ویندوز: فقط یک دستور
 
-پروژه را در Codex باز کن و همین متن را بفرست:
+PowerShell را داخل پوشه پروژه باز کن و بزن:
 
-~~~text
-Install or update Codex Context Optimizer in the CURRENT project from:
-https://github.com/TIR3D4/codex-context-optimizer
-
-Set it up automatically, preserve all existing project code and instructions, then continue with my task.
-
-My task:
-<کار موردنظر را اینجا بنویس>
+~~~powershell
+irm https://raw.githubusercontent.com/TIR3D4/codex-context-optimizer/main/install.ps1 | iex
 ~~~
 
 تمام.
 
-بعد از نصب، Codex را کاملاً عادی استفاده کن. لازم نیست خودت `report`، `doctor`، benchmark، handoff یا دستورهای مدیریت context را اجرا کنی.
+بعد پروژه را در Codex باز کن و فقط task خودت را بنویس. برای هر چت جدید نیازی به Prompt مخصوص نصب یا optimizer نداری.
 
-Optimizer پشت‌صحنه این کارها را مدیریت می‌کند:
-- مسیریابی فشرده داخل پروژه
-- حفظ AGENTS.md قبلی
-- آماده‌سازی Atlas در صورت امکان
-- قوانین کاهش context
-- بررسی روند مصرف
-- بررسی فشار context در مرزهای منطقی task
-- آماده‌سازی handoff وقتی چت جدید واقعاً مفید باشد
+Installer فقط فایل‌های کوچک موردنیاز را مستقیم دانلود می‌کند. لازم نیست Codex کل repository ابزار را clone، بخواند یا خلاصه کند؛ بنابراین خود نصب هم context و توکن اضافی زیادی مصرف نمی‌کند.
 
-اگر چت جدید لازم باشد، Codex باید خیلی کوتاه بهت بگوید. اگر لازم نباشد، optimizer مزاحم روند عادی کار نمی‌شود.
+## macOS / Linux
 
-## پروژه جدید یا پروژه قدیمی؟
-
-فرقی ندارد.
-
-**همان یک Prompt بالا** را بفرست. خودش تشخیص می‌دهد.
-
-## اگر چت قدیمی Codex داری
-
-بعد از نصب، اگر می‌خواهی همان چت قدیمی را ادامه بدهی فقط یک بار بفرست:
-
-~~~text
-Follow .codex-context/REFRESH_OLD_CHAT.md, then continue the current task.
+~~~bash
+curl -fsSL https://raw.githubusercontent.com/TIR3D4/codex-context-optimizer/main/install.sh | bash
 ~~~
 
-اگر optimizer تشخیص بدهد context خیلی سنگین شده، بهتر است در مرز مناسب task یک چت جدید باز شود.
+## چه چیزهایی خودکار می‌شود؟
 
-## ChatGPT Work
+بعد از نصب، Codex دستورهای فشرده‌ای برای این موارد دارد:
 
-همان نصب، فایل‌های context سبک برای Work را هم آماده می‌کند.
+- پیدا کردن هدفمند فایل‌های مرتبط
+- استفاده از Atlas وقتی موجود است
+- حفظ دستورهای قبلی پروژه
+- کنترل آرام فشار context
+- ساخت handoff وقتی واقعاً چت جدید مفید باشد
+- Git Safety خودکار در پروژه‌هایی که از قبل Git دارند
 
-داخل Work بفرست:
+### Git Safety
+
+اگر پروژه Git داشته باشد، Codex از بررسی‌های سبک مثل status و diff هدفمند برای محافظت از تغییرات استفاده می‌کند.
+
+به‌صورت خودکار این کارها را نمی‌کند:
+- ساخت Git برای پروژه‌ای که Git ندارد
+- reset / clean / stash کردن تغییرات کاربر
+- commit کردن فایل‌های نامرتبط
+- ساخت branch یا worktree برای هر task کوچک
+
+Worktree فقط برای کارهای موازی، بزرگ یا پرریسک استفاده می‌شود که isolation واقعاً ارزش داشته باشد.
+
+## نصب از داخل خود Codex
+
+اگر ترجیح می‌دهی Codex نصب را انجام بدهد، فقط بفرست:
 
 ~~~text
-Follow .codex-context/WORK_SETUP.md, using the .context files as compact navigation.
+Install or update Codex Context Optimizer in this project using:
+https://github.com/TIR3D4/codex-context-optimizer/blob/main/prompts/install-and-run.md
+
+Use the lightweight installer. Do not inspect the optimizer repository. Then continue with my task.
 ~~~
+
+## استفاده عادی
+
+بعد از نصب فقط task بنویس:
+
+~~~text
+مشکل ثبت پرداخت را پیدا کن، اصلاح کن و بخش مرتبط را تست کن.
+~~~
+
+نیازی نیست خودت `report`، `doctor`، benchmark، handoff یا دستورهای Git ابزار را مدیریت کنی.
 
 <details>
-<summary><strong>تنظیمات و ابزارهای پیشرفته</strong></summary>
-
-کاربر عادی به این دستورها نیازی ندارد:
+<summary><strong>ابزارهای پیشرفته و عیب‌یابی</strong></summary>
 
 ~~~powershell
 python .codex-context\tools\codex-context.py report --repo .
@@ -71,14 +78,9 @@ python .codex-context\tools\codex-context.py fresh-start --repo .
 python .codex-context\tools\codex-context.py analyze --repo .
 ~~~
 
-نصب اختیاری با ترمینال:
-
-~~~bash
-curl -fsSL https://raw.githubusercontent.com/TIR3D4/codex-context-optimizer/main/install.sh | bash
-~~~
-
 مستندات:
 - [Automatic Mode](prompts/AUTO_MODE.md)
+- [Git Safety](docs/git-safety.md)
 - [روش کار](docs/methodology.md)
 - [حفظ کیفیت](docs/quality-guardrails.md)
 - [فشار Context](docs/context-pressure.md)
