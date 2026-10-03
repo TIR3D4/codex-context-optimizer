@@ -2,281 +2,138 @@
 
 **English** | [فارسی](README.fa.md) | [Deutsch](README.de.md) | [Español](README.es.md) | [Türkçe](README.tr.md)
 
-Measure first. Optimize context second. Preserve quality throughout.
+Reduce unnecessary Codex context and token usage **without sacrificing result quality**.
 
-Codex Context Optimizer helps reduce unnecessary context usage in **Codex** and provides a compact context workflow for **ChatGPT Work**.
+## Quick start
 
-It combines:
-
-- **Atlas** for bounded repository navigation;
-- **agents-md-generator** as a project-fact discovery source;
-- concise, merge-safe **AGENTS.md** guidance;
-- local **Codex token telemetry** parsing;
-- **before/after benchmarks**;
-- safe migration for **existing chats**;
-- compact **handoffs** for fresh threads;
-- a small **.context/** layer for Work.
-
-## One-command public install
-
-You do **not** need access to the maintainer's ChatGPT account. This works for any user who can run shell commands in their project directory.
-
-### Starting a brand-new project
-
-Create/open the project directory, then run:
-
-~~~bash
-curl -fsSL https://raw.githubusercontent.com/TIR3D4/codex-context-optimizer/main/install.sh | bash -s -- --mode new
-~~~
-
-Then open that project in a new Codex chat and send only:
-
-~~~text
-Follow .codex-context/SETUP.md, then continue with my task.
-~~~
-
-### Applying it to an existing project
-
-From the existing repository root:
-
-~~~bash
-curl -fsSL https://raw.githubusercontent.com/TIR3D4/codex-context-optimizer/main/install.sh | bash -s -- --mode existing
-~~~
-
-Then open a new Codex chat and send only:
-
-~~~text
-Follow .codex-context/SETUP.md, then continue with my task.
-~~~
-
-The existing-project mode preserves the current AGENTS.md until Codex can merge it semantically and safely.
-
-### Let the installer decide
-
-If you do not want to choose a mode:
+Run this **inside your project folder**:
 
 ~~~bash
 curl -fsSL https://raw.githubusercontent.com/TIR3D4/codex-context-optimizer/main/install.sh | bash
 ~~~
 
-The bootstrap checks whether the target repository already contains meaningful tracked history and selects `new` or `existing`.
+That's it.
 
-### Existing old chat
+The installer automatically detects whether the project is **new** or **already existing**, and prepares the correct setup without overwriting your application code.
 
-If you want to keep working in a chat that was already open before installation, send only:
+Then open the project in a **new Codex chat** and send:
+
+~~~text
+Follow .codex-context/SETUP.md, then continue with my task.
+~~~
+
+Now write your task normally.
+
+Example:
+
+~~~text
+Follow .codex-context/SETUP.md, then continue with my task.
+
+Add rate limiting to the login API.
+~~~
+
+## What it does
+
+It automatically prepares a low-context workflow using:
+
+- Atlas repository map
+- compact AGENTS.md guidance
+- safe handling of existing project instructions
+- Codex usage measurement
+- before/after benchmarks
+- compact handoffs for long chats
+- optional ChatGPT Work context files
+
+The core rule is simple:
+
+> Use the minimum sufficient context, and expand it whenever correctness requires more.
+
+## Already have old Codex chats?
+
+You can keep using them. Send this once in the old chat:
 
 ~~~text
 Follow .codex-context/REFRESH_OLD_CHAT.md, then continue the current task.
 ~~~
 
-### ChatGPT Work
+For the cleanest and lowest-context result, a **new chat is still recommended** after installation.
 
-After the same bootstrap, in Work send:
+## Using ChatGPT Work instead of Codex?
+
+After the same install command, send this in Work:
 
 ~~~text
 Follow .codex-context/WORK_SETUP.md, using the .context files as compact navigation.
 ~~~
 
-The installer copies the required prompts and helper scripts **into the target project**, so future users do not need this repository open in another chat.
+## Measure token usage
 
-> Security note: piping a remote script directly to `bash` is convenient, but users who want to inspect it first can open `install.sh` on GitHub or clone this repository and run it locally.
-
-## Core rule
-
-The project does **not** minimize tokens at any cost.
-
-> Use the minimum sufficient context, then expand whenever correctness, tests, dependencies, or uncertainty require more.
-
-Atlas and summaries are navigation aids. Original source files remain authoritative.
-
-## Codex setup
-
-Install the external helpers:
+After installation:
 
 ~~~bash
-./setup.sh
+python3 .codex-context/tools/codex-context.py usage
 ~~~
 
-Open the target repository in a **new Codex chat** and use:
-
-~~~text
-prompts/codex-one-shot-setup.md
-~~~
-
-The setup:
-- preserves an existing AGENTS.md;
-- previews generator output instead of blindly overwriting instructions;
-- creates a bounded atlas-map.md;
-- avoids application/business-logic changes;
-- verifies the resulting setup;
-- explains how to migrate older chats safely.
-
-## Existing Codex chats
-
-New AGENTS.md or atlas-map.md files should not be assumed to retroactively rebuild the context of an already-running chat.
-
-For the cleanest transition, use a new chat after setup.
-
-If you must continue an old chat, use:
-
-~~~text
-prompts/existing-chat-refresh.md
-~~~
-
-For important ongoing work, create a compact handoff instead of copying the full old conversation:
+Analyze project context:
 
 ~~~bash
-python3 scripts/codex-context.py handoff --repo /path/to/project
+python3 .codex-context/tools/codex-context.py analyze --repo .
 ~~~
 
-See [Existing chats](docs/existing-chats.md).
-
-## Measure repository context
+Benchmark before/after usage:
 
 ~~~bash
-python3 scripts/codex-context.py analyze --repo /path/to/project
+python3 .codex-context/tools/codex-context.py benchmark-start before --repo .
+# run a representative Codex task
+python3 .codex-context/tools/codex-context.py benchmark-end before --repo .
 ~~~
 
-This reports tracked/source files, rough source-size context, AGENTS.md size, atlas-map.md size, large tracked source files, and obvious heavy directories.
-
-The source-token figure is only a rough size estimate, not billing telemetry.
-
-## Measure real Codex token telemetry
+Then repeat with an `after` benchmark and compare:
 
 ~~~bash
-python3 scripts/codex-context.py usage
+python3 .codex-context/tools/codex-context.py benchmark-compare before after --repo .
 ~~~
 
-The tool reads local Codex session JSONL files, prefers response-level token usage records, and deduplicates them by response ID when possible.
+Token reduction is only considered successful if correctness and validation quality are preserved.
 
-It can report:
-- input tokens;
-- cached input tokens;
-- non-cached input tokens;
-- cache-write input when available;
-- output tokens;
-- reasoning output tokens;
-- total recorded tokens;
-- peak last-turn input/context occupancy.
+<details>
+<summary><strong>Advanced usage</strong></summary>
 
-Local telemetry is useful for engineering comparisons, but it is **not** an authoritative invoice or subscription quota calculation.
-
-## Before / after benchmark
-
-Baseline:
+### Force new-project mode
 
 ~~~bash
-python3 scripts/codex-context.py benchmark-start before --repo /path/to/project
-# Run a representative Codex task
-python3 scripts/codex-context.py benchmark-end before --repo /path/to/project
+curl -fsSL https://raw.githubusercontent.com/TIR3D4/codex-context-optimizer/main/install.sh | bash -s -- --mode new
 ~~~
 
-Optimized run:
+### Force existing-project mode
 
 ~~~bash
-python3 scripts/codex-context.py benchmark-start after --repo /path/to/project
-# Run a comparable Codex task
-python3 scripts/codex-context.py benchmark-end after --repo /path/to/project
+curl -fsSL https://raw.githubusercontent.com/TIR3D4/codex-context-optimizer/main/install.sh | bash -s -- --mode existing
 ~~~
 
-Compare:
+### Install into another directory
 
 ~~~bash
-python3 scripts/codex-context.py benchmark-compare before after --repo /path/to/project
+curl -fsSL https://raw.githubusercontent.com/TIR3D4/codex-context-optimizer/main/install.sh | bash -s -- --target /path/to/project
 ~~~
 
-Lower token usage counts as an improvement only when correctness and validation quality are preserved.
+### Documentation
 
-See [Benchmarking](docs/benchmarking.md) and [Quality guardrails](docs/quality-guardrails.md).
+- [Methodology](docs/methodology.md)
+- [Benchmarking](docs/benchmarking.md)
+- [Quality guardrails](docs/quality-guardrails.md)
+- [Existing chats](docs/existing-chats.md)
+- [ChatGPT Work](docs/work-mode.md)
 
-## ChatGPT Work mode
-
-Work uses a different context model than Codex, so the optimizer does not pretend Codex telemetry applies to Work.
-
-Initialize compact Work context files:
-
-~~~bash
-python3 scripts/work-context.py init --repo /path/to/project
-~~~
-
-This creates, without overwriting existing files:
-
-~~~text
-.context/
-├── PROJECT_CONTEXT.md
-├── CURRENT_TASK.md
-├── DECISIONS.md
-└── SOURCE_INDEX.md
-~~~
-
-Then use:
-
-~~~text
-prompts/work-one-shot-setup.md
-~~~
-
-Check their approximate persistent size:
-
-~~~bash
-python3 scripts/work-context.py analyze --repo /path/to/project
-~~~
-
-For Work, these are context-size proxies, not claimed exact token billing.
-
-See [Work mode](docs/work-mode.md).
-
-## Repository structure
-
-~~~text
-codex-context-optimizer/
-├── README.md
-├── README.fa.md
-├── README.de.md
-├── README.es.md
-├── README.tr.md
-├── LICENSE
-├── prompts/
-│   ├── codex-one-shot-setup.md
-│   ├── existing-chat-refresh.md
-│   └── work-one-shot-setup.md
-├── templates/
-│   ├── AGENTS.md
-│   └── work/
-├── scripts/
-│   ├── codex-context.py
-│   ├── work-context.py
-│   ├── install-atlas.sh
-│   ├── install-agentsmd.sh
-│   └── refresh-atlas.sh
-└── docs/
-    ├── methodology.md
-    ├── benchmarking.md
-    ├── quality-guardrails.md
-    ├── existing-chats.md
-    └── work-mode.md
-~~~
-
-## Upstream projects
+### Upstream projects
 
 - Atlas: https://github.com/fkenmar/atlas
 - agents-md-generator: https://github.com/nguyenthedat123/agents-md-generator
 - OpenAI Codex: https://github.com/openai/codex
 
-They are independent upstream projects.
+</details>
 
-## Normal chats after setup
-
-For Codex, a normal task can usually be just the task itself. If you want an explicit reminder:
-
-~~~text
-Use the project instructions and atlas-map.md for navigation.
-Expand context whenever correctness requires it.
-
-Task:
-<your task>
-~~~
-
-For Work, keep PROJECT_CONTEXT and CURRENT_TASK compact and use SOURCE_INDEX to reach authoritative sources on demand.
+> Security note: if you do not want to pipe a remote script directly to Bash, inspect [install.sh](install.sh) first or clone the repository and run it locally.
 
 ## License
 
