@@ -2,7 +2,7 @@
 """Codex Context Optimizer: analyze repositories and measure local Codex usage."""
 
 from __future__ import annotations
-import argparse, datetime as dt, json, os, pathlib, subprocess, sys
+import argparse, datetime as dt, json, os, pathlib, shutil, subprocess, sys
 from dataclasses import dataclass, asdict
 from typing import Any
 
@@ -257,6 +257,105 @@ def cmd_compare(a):
     return 0
 
 
+def latest_session_health(base):
+    files=files_under(base)
+    if not files:
+        return None
+    try:
+        path=max(files,key=lambda p:p.stat().st_mtime)
+    except Exception:
+        return None
+
+    usage=Usage(source="latest-session")
+    seen=set()
+    peak_last=0
+    window=0
+    last_cumulative=None
+
+    try:
+        fh=path.open("r",encoding="utf-8",errors="replace")
+    except OSError:
+        return None
+
+    with fh:
+        for line_no,line in enumerate(fh,1):
+            try:
+                obj=json.loads(line)
+            except Exception:
+                continue
+
+            rid,ud=modern_record(obj)
+            if isinstance(ud,dict):
+                u=usage_dict(ud)
+                key=str(rid) if rid is not None else str(line_no)
+                if key not in seen:
+                    seen.add(key)
+                    usage.responses+=1
+                    usage.input_tokens+=u.input_tokens
+                    usage.cached_input_tokens+=u.cached_input_tokens
+                    usage.cache_write_input_tokens+=u.cache_write_input_tokens
+                    usage.output_tokens+=u.output_tokens
+                    usage.reasoning_output_tokens+=u.reasoning_output_tokens
+                    usage.total_tokens+=u.total_tokens or u.input_tokens+u.output_tokens
+
+            cumulative,last,w=token_count(obj)
+            if isinstance(cumulative,dict):
+                last_cumulative=usage_dict(cumulative)
+            if isinstance(last,dict):
+                peak_last=max(peak_last,usage_dict(last).input_tokens)
+            window=max(window,w)
+
+    # Some Codex builds only expose cumulative token_count in a session.
+    if usage.responses==0 and last_cumulative is not None:
+        usage=last_cumulative
+        usage.source="latest-session cumulative fallback"
+
+    usage.sessions=1
+    usage.max_last_input_tokens=peak_last
+    usage.max_context_window=window
+    return {
+        "path":str(path),
+        "usage":usage,
+        "occupancy":(peak_last/window) if peak_last and window else 0.0,
+    }
+
+def pressure_label(occupancy):
+    if occupancy >= 0.90:
+        return "CRITICAL"
+    if occupancy >= 0.80:
+        return "HIGH"
+    if occupancy >= 0.65:
+        return "ELEVATED"
+    return "NORMAL"
+
+def report_history_path(root):
+    return root/STATE_DIR/"report-history.jsonl"
+
+def read_last_report(root):
+    p=report_history_path(root)
+    if not p.exists():
+        return None
+    last=None
+    try:
+        with p.open("r",encoding="utf-8",errors="replace") as fh:
+            for line in fh:
+                try:
+                    last=json.loads(line)
+                except Exception:
+                    continue
+    except OSError:
+        return None
+    return last
+
+def append_report_history(root,record):
+    p=report_history_path(root)
+    p.parent.mkdir(parents=True,exist_ok=True)
+    try:
+        with p.open("a",encoding="utf-8") as fh:
+            fh.write(json.dumps(record,ensure_ascii=False)+"\\n")
+    except OSError:
+        pass
+
 def cmd_report(a):
     root=root_for(a.repo)
     base=pathlib.Path(a.sessions).expanduser() if a.sessions else session_path()
@@ -264,9 +363,8 @@ def cmd_report(a):
 
     baseline=None
     baseline_label=None
-
-    # Best source: snapshot captured automatically when the optimizer was installed.
     baseline_file=root/STATE_DIR/"install-baseline.json"
+
     if baseline_file.exists():
         try:
             data=json.loads(baseline_file.read_text(encoding="utf-8"))
@@ -276,9 +374,6 @@ def cmd_report(a):
         except Exception:
             baseline=None
 
-    # Backward-compatible fallback for projects installed before automatic baselines:
-    # use the START snapshot of the optimized benchmark, not the frozen 6-response result.
-    # This makes every later Codex response part of the post-optimizer period.
     if baseline is None:
         result_path=bench_path(root,"optimized.result")
         if result_path.exists():
@@ -292,7 +387,6 @@ def cmd_report(a):
                 baseline=None
 
     if baseline is None:
-        # First report on an older installation: start live tracking now.
         baseline_file.parent.mkdir(parents=True,exist_ok=True)
         baseline_file.write_text(json.dumps({
             "captured_at":dt.datetime.now(dt.timezone.utc).isoformat(),
@@ -312,6 +406,15 @@ def cmd_report(a):
     after=current.minus(baseline)
     before_avg=baseline.avg_total_per_response
     after_avg=after.avg_total_per_response
+    saving=None
+    if before_avg and after_avg:
+        saving=((before_avg-after_avg)/before_avg)*100
+
+    latest=latest_session_health(base)
+    occupancy=latest["occupancy"] if latest else 0.0
+    pressure=pressure_label(occupancy)
+
+    previous=read_last_report(root)
 
     print("Optimizer report")
     print("----------------")
@@ -321,16 +424,34 @@ def cmd_report(a):
     print("Before avg/response:      "+(f"{before_avg:,.0f}" if before_avg else "n/a"))
     print("After avg/response:       "+(f"{after_avg:,.0f}" if after_avg else "n/a"))
 
-    if before_avg and after_avg:
-        pct=((after_avg-before_avg)/before_avg)*100
-        print("Estimated change:         "+f"{pct:+.1f}%")
-        if pct < 0:
-            print("Estimated saving:         "+f"{abs(pct):.1f}% per response")
+    if saving is not None:
+        print("Estimated change:         "+f"{-saving:+.1f}%")
+        if saving > 0:
+            print("Estimated saving:         "+f"{saving:.1f}% per response")
         else:
             print("Estimated saving:         no reduction detected yet")
 
     print("After total tokens:       "+f"{after.total_tokens:,}")
     print("After cached input:       "+f"{after.cached_input_tokens:,}"+" ("+f"{after.cached_ratio:.1%}"+" of input)")
+
+    if latest:
+        lu=latest["usage"]
+        print()
+        print("Latest session")
+        print("--------------")
+        print("Responses:                "+f"{lu.responses:,}")
+        if lu.responses:
+            print("Avg tokens/response:      "+f"{lu.avg_total_per_response:,.0f}")
+        if occupancy:
+            print("Peak context occupancy:   "+f"{occupancy:.1%}")
+        print("Context pressure:         "+pressure)
+
+    if previous and saving is not None and isinstance(previous.get("saving_pct"),(int,float)):
+        drift=saving-float(previous["saving_pct"])
+        if abs(drift) >= 0.1:
+            direction="improved" if drift>0 else "declined"
+            print()
+            print("Since last report:        "+direction+" "+f"{abs(drift):.1f}"+" percentage points")
 
     if after.responses < 10:
         confidence="LOW — collect more post-optimizer responses"
@@ -342,7 +463,31 @@ def cmd_report(a):
     print()
     print("Confidence: "+confidence)
     print("This is a live before/after trend, not a controlled A/B test.")
-    print("Different tasks can require different amounts of context.")
+
+    if pressure in {"HIGH","CRITICAL"}:
+        print()
+        print("Recommended action")
+        print("------------------")
+        print("This session is using a large share of the context window.")
+        print("Create a compact handoff and continue in a fresh chat:")
+        print("  python .codex-context\\tools\\codex-context.py fresh-start --repo .")
+    elif saving is not None and saving < 15 and after.responses >= 20:
+        print()
+        print("Recommended action")
+        print("------------------")
+        print("Savings are becoming small. Consider a fresh chat for the next task boundary.")
+
+    append_report_history(root,{
+        "captured_at":dt.datetime.now(dt.timezone.utc).isoformat(),
+        "before_responses":baseline.responses,
+        "after_responses":after.responses,
+        "before_avg":before_avg,
+        "after_avg":after_avg,
+        "saving_pct":saving,
+        "cached_ratio":after.cached_ratio,
+        "latest_occupancy":occupancy,
+        "pressure":pressure,
+    })
     return 0
 
 def status_paths(root):
@@ -351,20 +496,97 @@ def status_paths(root):
     return [line[3:] for line in out.splitlines() if len(line)>=4]
 
 def cmd_handoff(a):
-    root=root_for(a.repo); out=root/(a.output or STATE_DIR+"/HANDOFF.md"); out.parent.mkdir(parents=True,exist_ok=True)
-    try: branch=run(["git","branch","--show-current"],root).strip() or "(detached)"
-    except Exception: branch="(unknown)"
-    try: recent=run(["git","log","-5","--oneline","--decorate=no"],root).strip()
-    except Exception: recent="(unavailable)"
+    root=root_for(a.repo)
+    out=root/(a.output or STATE_DIR+"/HANDOFF.md")
+    out.parent.mkdir(parents=True,exist_ok=True)
+
+    try:
+        branch=run(["git","branch","--show-current"],root).strip() or "(detached)"
+    except Exception:
+        branch="(unknown)"
+    try:
+        recent=run(["git","log","-5","--oneline","--decorate=no"],root).strip()
+    except Exception:
+        recent="(unavailable)"
+    try:
+        diffstat=run(["git","diff","--stat"],root).strip()
+    except Exception:
+        diffstat="(unavailable)"
     changed=status_paths(root)
-    lines=["# Codex handoff","", "Generated: "+dt.datetime.now(dt.timezone.utc).isoformat(),"Branch: "+branch,"",
-      "## Current goal","","<fill in one or two sentences>","","## Decisions already made","","- <decision>","",
-      "## Relevant files for the next task",""]
-    lines += ["- "+p for p in changed] if changed else ["- <add only likely relevant files>"]
-    lines += ["","## Validation already performed","","- <test/check and result>","","## Remaining work","","- <next concrete step>","",
-      "## Current git status","","~~~text",("\n".join(changed) if changed else "clean working tree"),"~~~","",
-      "## Recent commits","","~~~text",recent,"~~~","","Keep this handoff compact. Do not paste logs or full diffs here.",""]
-    out.write_text("\n".join(lines),encoding="utf-8"); print("Wrote compact handoff: "+str(out)); return 0
+
+    agents="AGENTS.md" if (root/"AGENTS.md").exists() else "(missing)"
+    atlas="atlas-map.md" if (root/"atlas-map.md").exists() else "(missing)"
+
+    lines=[
+      "# Codex handoff","",
+      "Generated: "+dt.datetime.now(dt.timezone.utc).isoformat(),
+      "Branch: "+branch,"",
+      "## Resume instructions","",
+      "- Read this file first.",
+      "- Read "+agents+" and "+atlas+" if present.",
+      "- Preserve existing working-tree changes.",
+      "- Use the smallest relevant source set first, then expand whenever correctness requires it.","",
+      "## Working tree","",
+    ]
+    lines += ["- "+p for p in changed] if changed else ["- clean working tree"]
+    lines += ["","## Diff summary","","~~~text",diffstat or "(no unstaged diff)","~~~","",
+      "## Recent commits","","~~~text",recent,"~~~","",
+      "## What the next chat should establish","",
+      "- Confirm the current task goal from the user's first message.",
+      "- Reuse decisions visible in changed files and git history; do not invent missing decisions.",
+      "- Run the narrowest relevant validation before broad checks.","",
+      "Keep this handoff compact. Do not paste full logs, full diffs, or large source files here.",""
+    ]
+    out.write_text("\n".join(lines),encoding="utf-8")
+    print("Wrote compact handoff: "+str(out))
+    return 0
+
+def cmd_fresh_start(a):
+    rc=cmd_handoff(a)
+    if rc:
+        return rc
+    root=root_for(a.repo)
+    print()
+    print("Fresh-chat package ready.")
+    print("-------------------------")
+    print("Open a NEW Codex chat in this project and send:")
+    print()
+    print("Read .codex-context/HANDOFF.md, AGENTS.md, and atlas-map.md if present.")
+    print("Preserve the existing working tree, then continue with my task.")
+    print()
+    print("This avoids carrying the full old conversation into the next task.")
+    return 0
+
+def cmd_doctor(a):
+    root=root_for(a.repo)
+    base=pathlib.Path(a.sessions).expanduser() if a.sessions else session_path()
+    latest=latest_session_health(base)
+
+    agents=root/"AGENTS.md"
+    atlas=root/"atlas-map.md"
+    print("Context optimizer doctor")
+    print("------------------------")
+    print("Repository:              "+str(root))
+    print("AGENTS.md:               "+("OK" if agents.exists() else "MISSING"))
+    if agents.exists():
+        print("AGENTS approx tokens:    "+f"{est_tokens(agents.stat().st_size):,}")
+    print("atlas-map.md:            "+("OK" if atlas.exists() else "MISSING"))
+    if atlas.exists():
+        print("Atlas approx tokens:     "+f"{est_tokens(atlas.stat().st_size):,}")
+    print("Atlas CLI:               "+("available" if shutil.which("atlas") else "not found"))
+    print("CatchUp CLI:             "+("available (optional integration)" if shutil.which("catchup") else "not installed (optional)"))
+
+    if latest:
+        occ=latest["occupancy"]
+        print("Latest context pressure: "+pressure_label(occ)+((" ("+f"{occ:.1%}"+")") if occ else ""))
+        if pressure_label(occ) in {"HIGH","CRITICAL"}:
+            print()
+            print("Action: run fresh-start before the next substantial task.")
+
+    print()
+    print("No third-party handoff/compression tool is required.")
+    print("Optional tools such as CatchUp or Codex Compressor can be evaluated separately.")
+    return 0
 
 def parser():
     p=argparse.ArgumentParser(prog="codex-context",description="Measure and reduce unnecessary Codex context usage.")
@@ -375,7 +597,7 @@ def parser():
     x=s.add_parser("benchmark-end"); x.add_argument("name"); x.add_argument("--repo"); x.add_argument("--sessions"); x.set_defaults(fn=cmd_end)
     x=s.add_parser("benchmark-compare"); x.add_argument("before"); x.add_argument("after"); x.add_argument("--repo"); x.set_defaults(fn=cmd_compare)
     x=s.add_parser("report"); x.add_argument("--repo"); x.add_argument("--sessions"); x.set_defaults(fn=cmd_report)
-    x=s.add_parser("handoff"); x.add_argument("--repo"); x.add_argument("--output"); x.set_defaults(fn=cmd_handoff)
+    x=s.add_parser("handoff"); x.add_argument("--repo"); x.add_argument("--output"); x.set_defaults(fn=cmd_handoff)\n    x=s.add_parser("fresh-start"); x.add_argument("--repo"); x.add_argument("--output"); x.set_defaults(fn=cmd_fresh_start)\n    x=s.add_parser("doctor"); x.add_argument("--repo"); x.add_argument("--sessions"); x.set_defaults(fn=cmd_doctor)
     return p
 
 def main():
