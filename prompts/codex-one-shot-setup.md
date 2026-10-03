@@ -8,42 +8,54 @@ Use the actual upstream tools where practical:
 - Atlas: https://github.com/fkenmar/atlas
 - agents-md-generator: https://github.com/nguyenthedat123/agents-md-generator
 
+## Success criteria
+
+Optimization succeeds only when:
+1. unnecessary context/token usage is reduced;
+2. task correctness is preserved;
+3. existing project rules are preserved;
+4. Codex may expand context whenever correctness requires it;
+5. no application/business logic is changed during setup.
+
+Never optimize for a smaller context at the cost of a worse result.
+
 ## Hard constraints
 
 - Do not modify application/business logic.
 - Do not delete or revert unrelated user work.
 - Do not blindly overwrite any existing `AGENTS.md`.
-- Do not recursively scan the repository yourself before using the available repository-navigation tools.
+- Do not recursively scan the repository yourself before using available navigation tools.
 - Keep persistent context concise.
 - Prefer progressive context expansion: start small and read more only when evidence requires it.
+- Never impose a hard maximum number of source files that Codex may inspect.
 
 ## Phase 1 — lightweight inspection
 
 Inspect only:
 - `git status`
 - top-level directory names
-- existing root `AGENTS.md`
+- existing root/nested `AGENTS.md`
 - existing `atlas-map.md`
 - README
 - primary project manifests/configuration files
 
 Do not broadly open source files yet.
 
-If important project-specific facts cannot be determined cheaply, ask me one batch of at most 5 concise questions. Ask only questions that would materially improve token efficiency, safety, architecture guidance, or build/test commands.
+If important project-specific facts cannot be determined cheaply, ask me one batch of at most 5 concise questions. Ask only questions that materially improve token efficiency, safety, architecture guidance, or build/test commands.
 
 ## Phase 2 — Atlas
 
 Check:
 
-```bash
+~~~bash
 atlas --version
-```
+~~~
 
 If Atlas is unavailable, prefer:
 
-```bash
+~~~bash
 pipx install --pre atlas-map
-```
+~~~
 
 If `pipx` is unavailable, report the safest supported alternative before changing the environment.
 
@@ -51,15 +63,15 @@ Do not replace a working Atlas installation unnecessarily.
 
 Generate or refresh the repository map from the real repository root:
 
-```bash
+~~~bash
 atlas . --for-agent --budget 2048 -o atlas-map.md
-```
+~~~
 
 Keep the map near a 2048-token budget unless there is a demonstrated reason to change it.
 
 If the repository is too large, prefer supported exclusions or focused paths over dramatically increasing the budget.
 
-Treat `atlas-map.md` as a navigation index, not authoritative source code.
+Treat `atlas-map.md` as a navigation index, never as authoritative source code.
 
 ## Phase 3 — agents-md-generator
 
@@ -105,7 +117,7 @@ Include these principles where relevant:
 - Use `atlas-map.md` first for repository orientation.
 - Identify the smallest relevant source-file set before opening source files.
 - Prefer symbol/path/exact-term searches over broad scans.
-- Expand context only when required.
+- Expand context whenever correctness or uncertainty requires it.
 - Do not reread unchanged files without a reason.
 - Use `git status` and `git diff` to understand existing work.
 - Avoid logs, generated files, caches, dependencies, backups, build output, large datasets, and unrelated documentation unless required.
@@ -119,7 +131,7 @@ Include these principles where relevant:
 ### Validation
 - Run the narrowest relevant test/check first.
 - Use verified project commands.
-- Avoid expensive full-project tests/builds unless necessary or explicitly requested.
+- Run broader validation when change risk, shared code, schemas, or cross-module behavior requires it.
 
 ### Completion
 Report concisely:
@@ -159,7 +171,33 @@ Exclude clearly irrelevant/context-heavy paths only when appropriate, such as:
 
 Do not exclude real source code merely to make the map smaller.
 
-## Phase 7 — verification
+## Phase 7 — measurement readiness
+
+If `scripts/codex-context.py` from Codex Context Optimizer is available, run an `analyze` report against this repository.
+
+Do not invent token savings.
+
+For actual before/after token measurements, use local Codex telemetry with the benchmark workflow documented by the optimizer.
+
+Record that:
+- cached input is a subset of input;
+- reasoning output is a subset of output;
+- local telemetry is not an authoritative invoice or plan quota.
+
+## Phase 8 — existing chat migration
+
+This setup may be applied to a project that already has older Codex chats.
+
+Do not assume already-running chats have automatically rebuilt their working context around the new files.
+
+At the end:
+- recommend a new chat for the cleanest low-context start;
+- provide the lightweight refresh prompt path `prompts/existing-chat-refresh.md` if the user needs to continue an old chat;
+- if the current task has important state, create/use a compact handoff rather than copying the entire old conversation.
+
+Old chats remain usable; they simply may carry more historical context and earlier assumptions.
+
+## Phase 9 — verification
 
 Before finishing, verify:
 
@@ -171,6 +209,8 @@ Before finishing, verify:
 6. No application/business logic was changed.
 7. `git diff` contains only intended setup/documentation changes.
 8. Future normal tasks do not require rerunning agents-md-generator.
+9. No source directory was excluded only to chase a smaller token number.
+10. Codex is explicitly allowed to expand context when needed for correctness.
 
 ## Final report
 
@@ -182,9 +222,13 @@ Return a compact report containing:
 - `AGENTS.md` files created/changed;
 - `atlas-map.md` status and budget;
 - any exclusions added;
+- approximate persistent-context size;
 - files changed;
-- any remaining source of unnecessary context.
+- any remaining source of unnecessary context;
+- whether existing chats should be refreshed or replaced with a new chat for the next task.
 
-Then give me one very short prompt for normal future Codex chats.
+Then give me:
+1. one very short prompt for normal future Codex chats;
+2. one very short refresh prompt for an existing chat.
 
 Stop after setup and verification.
