@@ -2,192 +2,138 @@
 
 [English](README.md) | **فارسی** | [Deutsch](README.de.md) | [Español](README.es.md) | [Türkçe](README.tr.md)
 
-ابزاری برای کاهش مصرف بی‌دلیل context و توکن در **Codex** و ساخت یک لایه context سبک برای **ChatGPT Work**، بدون قربانی‌کردن کیفیت نتیجه.
+کاهش مصرف بی‌دلیل context و توکن در Codex **بدون قربانی‌کردن کیفیت نتیجه**.
 
-## نصب عمومی با یک دستور
+## نصب سریع
 
-این پروژه فقط مخصوص حساب سازنده نیست. هر کسی که بتواند داخل پوشه پروژه command اجرا کند می‌تواند از آن استفاده کند.
-
-### پروژه کاملاً جدید
-
-داخل پوشه پروژه:
-
-~~~bash
-curl -fsSL https://raw.githubusercontent.com/TIR3D4/codex-context-optimizer/main/install.sh | bash -s -- --mode new
-~~~
-
-بعد پروژه را در یک چت جدید Codex باز کن و فقط بفرست:
-
-~~~text
-Follow .codex-context/SETUP.md, then continue with my task.
-~~~
-
-### پروژه‌ای که از قبل وجود دارد
-
-در root همان repository:
-
-~~~bash
-curl -fsSL https://raw.githubusercontent.com/TIR3D4/codex-context-optimizer/main/install.sh | bash -s -- --mode existing
-~~~
-
-بعد یک چت جدید Codex باز کن و همان پیام کوتاه را بفرست:
-
-~~~text
-Follow .codex-context/SETUP.md, then continue with my task.
-~~~
-
-در حالت existing، فایل AGENTS.md موجود کورکورانه overwrite نمی‌شود و برای merge امن نگه داشته می‌شود.
-
-### تشخیص خودکار
-
-اگر نمی‌خواهی حالت را مشخص کنی:
+داخل پوشه پروژه فقط این دستور را اجرا کن:
 
 ~~~bash
 curl -fsSL https://raw.githubusercontent.com/TIR3D4/codex-context-optimizer/main/install.sh | bash
 ~~~
 
-اسکریپت براساس وضعیت repository بین new و existing انتخاب می‌کند.
+تمام.
 
-### ادامه یک چت قدیمی
+اسکریپت خودش تشخیص می‌دهد پروژه **جدید** است یا **از قبل وجود دارد** و تنظیم مناسب را انجام می‌دهد؛ بدون اینکه کد اصلی برنامه را overwrite کند.
 
-اگر چت قبل از نصب باز بوده، فقط بفرست:
+بعد پروژه را در یک **چت جدید Codex** باز کن و فقط این را بفرست:
+
+~~~text
+Follow .codex-context/SETUP.md, then continue with my task.
+~~~
+
+بعد درخواستت را عادی ادامه بده.
+
+مثلاً:
+
+~~~text
+Follow .codex-context/SETUP.md, then continue with my task.
+
+برای API لاگین rate limit اضافه کن.
+~~~
+
+## چه کاری انجام می‌دهد؟
+
+به‌صورت خودکار این موارد را برای پروژه آماده می‌کند:
+
+- Atlas برای نقشه فشرده پروژه
+- AGENTS.md کوتاه و بهینه
+- حفظ امن دستورالعمل‌های قبلی پروژه
+- اندازه‌گیری مصرف Codex
+- benchmark قبل/بعد
+- handoff برای چت‌های طولانی
+- فایل‌های context مخصوص ChatGPT Work
+
+اصل پروژه ساده است:
+
+> با حداقل context کافی شروع کن و هر زمان صحت نتیجه نیاز داشت، context را گسترش بده.
+
+## اگر از قبل چت Codex داری
+
+می‌توانی همان چت را ادامه بدهی. فقط یک بار داخل چت قدیمی بفرست:
 
 ~~~text
 Follow .codex-context/REFRESH_OLD_CHAT.md, then continue the current task.
 ~~~
 
-### ChatGPT Work
+ولی برای کمترین context و نتیجه تمیزتر، بعد از نصب **چت جدید پیشنهاد می‌شود**.
 
-بعد از همان نصب:
+## اگر به‌جای Codex از ChatGPT Work استفاده می‌کنی
+
+بعد از همان دستور نصب، داخل Work بفرست:
 
 ~~~text
 Follow .codex-context/WORK_SETUP.md, using the .context files as compact navigation.
 ~~~
 
-فایل‌های لازم مستقیماً داخل پروژه هدف کپی می‌شوند؛ بنابراین کاربر دیگری هم بدون دسترسی به حساب ChatGPT سازنده می‌تواند از workflow استفاده کند.
+## مشاهده مصرف توکن
 
-## اصل اصلی
-
-هدف این پروژه «کمترین توکن به هر قیمت» نیست.
-
-> ابتدا با حداقل context کافی شروع کن و هر زمان صحت، تست، وابستگی یا ابهام نیاز داشت، context را گسترش بده.
-
-Atlas و فایل‌های خلاصه فقط برای مسیریابی هستند؛ source اصلی همچنان مرجع نهایی است.
-
-## راه‌اندازی Codex
+بعد از نصب:
 
 ~~~bash
-./setup.sh
+python3 .codex-context/tools/codex-context.py usage
 ~~~
-
-بعد پروژه هدف را در یک **چت جدید Codex** باز کن و از این فایل استفاده کن:
-
-~~~text
-prompts/codex-one-shot-setup.md
-~~~
-
-Setup:
-- AGENTS.md موجود را کورکورانه overwrite نمی‌کند؛
-- خروجی agents-md-generator را ابتدا preview می‌کند؛
-- atlas-map.md با بودجه محدود می‌سازد؛
-- کد اصلی برنامه را تغییر نمی‌دهد؛
-- در پایان وضعیت را validate می‌کند.
-
-## چت‌های قدیمی
-
-اگر پروژه قبل از optimizer چند چت داشته باشد، فرض نمی‌کنیم چت‌های قدیمی خودکار context جدید را از نو بارگذاری کنند.
-
-بهترین حالت: بعد از setup یک چت جدید باز کن.
-
-اگر باید همان چت قدیمی ادامه پیدا کند:
-
-~~~text
-prompts/existing-chat-refresh.md
-~~~
-
-برای انتقال کار مهم به چت جدید:
-
-~~~bash
-python3 scripts/codex-context.py handoff --repo /path/to/project
-~~~
-
-جزئیات: [Existing chats](docs/existing-chats.md)
-
-## اندازه‌گیری مصرف Codex
 
 تحلیل context پروژه:
 
 ~~~bash
-python3 scripts/codex-context.py analyze --repo /path/to/project
+python3 .codex-context/tools/codex-context.py analyze --repo .
 ~~~
 
-خواندن telemetry محلی Codex:
+برای benchmark قبل و بعد:
 
 ~~~bash
-python3 scripts/codex-context.py usage
+python3 .codex-context/tools/codex-context.py benchmark-start before --repo .
+# یک task واقعی با Codex انجام بده
+python3 .codex-context/tools/codex-context.py benchmark-end before --repo .
 ~~~
 
-Benchmark قبل/بعد:
+بعد همین کار را با نام `after` انجام بده و مقایسه کن:
 
 ~~~bash
-python3 scripts/codex-context.py benchmark-start before --repo /path/to/project
-# یک task واقعی
-python3 scripts/codex-context.py benchmark-end before --repo /path/to/project
-
-python3 scripts/codex-context.py benchmark-start after --repo /path/to/project
-# یک task مشابه
-python3 scripts/codex-context.py benchmark-end after --repo /path/to/project
-
-python3 scripts/codex-context.py benchmark-compare before after --repo /path/to/project
+python3 .codex-context/tools/codex-context.py benchmark-compare before after --repo .
 ~~~
 
-کاهش مصرف فقط وقتی موفقیت است که کیفیت، تست‌ها و صحت نتیجه حفظ شده باشد.
+کاهش توکن فقط وقتی موفقیت محسوب می‌شود که کیفیت و صحت نتیجه حفظ شده باشد.
 
-## پشتیبانی از ChatGPT Work
+<details>
+<summary><strong>تنظیمات پیشرفته</strong></summary>
 
-برای Work:
+### اجبار حالت پروژه جدید
 
 ~~~bash
-python3 scripts/work-context.py init --repo /path/to/project
+curl -fsSL https://raw.githubusercontent.com/TIR3D4/codex-context-optimizer/main/install.sh | bash -s -- --mode new
 ~~~
 
-این فایل‌ها را بدون overwrite فایل‌های موجود می‌سازد:
-
-~~~text
-.context/
-├── PROJECT_CONTEXT.md
-├── CURRENT_TASK.md
-├── DECISIONS.md
-└── SOURCE_INDEX.md
-~~~
-
-بعد از این prompt استفاده کن:
-
-~~~text
-prompts/work-one-shot-setup.md
-~~~
-
-اندازه تقریبی context پایدار Work:
+### اجبار حالت پروژه موجود
 
 ~~~bash
-python3 scripts/work-context.py analyze --repo /path/to/project
+curl -fsSL https://raw.githubusercontent.com/TIR3D4/codex-context-optimizer/main/install.sh | bash -s -- --mode existing
 ~~~
 
-برای Work ادعای token telemetry دقیق نمی‌کنیم؛ فقط چیزهایی را گزارش می‌کنیم که واقعاً قابل مشاهده‌اند.
+### نصب روی مسیر مشخص
 
-## فایل‌های مهم
+~~~bash
+curl -fsSL https://raw.githubusercontent.com/TIR3D4/codex-context-optimizer/main/install.sh | bash -s -- --target /path/to/project
+~~~
+
+### مستندات
 
 - [روش کار](docs/methodology.md)
 - [Benchmark](docs/benchmarking.md)
-- [محافظت از کیفیت](docs/quality-guardrails.md)
+- [حفظ کیفیت](docs/quality-guardrails.md)
 - [چت‌های قدیمی](docs/existing-chats.md)
-- [Work mode](docs/work-mode.md)
+- [ChatGPT Work](docs/work-mode.md)
 
-## پروژه‌های upstream
+### پروژه‌های upstream
 
 - Atlas: https://github.com/fkenmar/atlas
 - agents-md-generator: https://github.com/nguyenthedat123/agents-md-generator
 - OpenAI Codex: https://github.com/openai/codex
+
+</details>
+
+> نکته امنیتی: اگر نمی‌خواهی یک اسکریپت اینترنتی را مستقیم به Bash بدهی، اول فایل [install.sh](install.sh) را بررسی کن یا repo را clone کن و محلی اجرا کن.
 
 ## مجوز
 
