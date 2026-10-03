@@ -4,65 +4,72 @@
 
 Reduce unnecessary Codex context and token usage **without sacrificing result quality**.
 
-## Use it in one step
+## Windows: one command
 
-Open your project in Codex and paste this:
+Open PowerShell in your project folder and run:
 
-~~~text
-Install or update Codex Context Optimizer in the CURRENT project from:
-https://github.com/TIR3D4/codex-context-optimizer
-
-Set it up automatically, preserve all existing project code and instructions, then continue with my task.
-
-My task:
-<WRITE YOUR TASK HERE>
+~~~powershell
+irm https://raw.githubusercontent.com/TIR3D4/codex-context-optimizer/main/install.ps1 | iex
 ~~~
 
-That's it.
+Done.
 
-After installation, use Codex normally. You do **not** need to manually run reports, benchmarks, doctor checks, handoffs, or context commands.
+Open Codex in that project and write your task normally. No setup prompt is required for every new chat.
 
-The optimizer quietly handles:
-- compact repository navigation;
-- existing AGENTS.md preservation;
-- Atlas setup when available;
-- context-efficiency rules;
-- usage trend tracking;
-- context-pressure checks at sensible task boundaries;
-- compact handoff preparation when a fresh chat would materially help.
+The installer downloads only the small runtime files it needs. It does **not** clone or ask Codex to read the whole optimizer repository, which keeps installation overhead and context use low.
 
-If a new chat is recommended, Codex should tell you with one short instruction. Otherwise, the optimizer stays out of the way.
+## macOS / Linux
 
-## Existing project or new project?
-
-Same prompt.
-
-The installer detects it automatically.
-
-## Already have an old Codex chat?
-
-After installation, you may continue it by sending once:
-
-~~~text
-Follow .codex-context/REFRESH_OLD_CHAT.md, then continue the current task.
+~~~bash
+curl -fsSL https://raw.githubusercontent.com/TIR3D4/codex-context-optimizer/main/install.sh | bash
 ~~~
 
-For the best context efficiency, start a new chat at a clean task boundary when Codex recommends it.
+## What runs automatically?
 
-## ChatGPT Work
+After installation, Codex gets compact project guidance for:
 
-The same installation also prepares a compact `.context/` layer for Work.
+- targeted repository navigation;
+- Atlas use when already available;
+- preserving existing project instructions;
+- quiet context-pressure monitoring;
+- compact handoffs when a fresh chat would materially help;
+- automatic Git safety when the project already uses Git.
 
-In Work, send:
+### Git safety
+
+If the project has Git, Codex can use lightweight status/diff checks to protect existing work.
+
+It will **not** automatically:
+- initialize Git in a non-Git project;
+- reset/clean/stash user changes;
+- commit unrelated files;
+- create branches/worktrees for every small task.
+
+Worktrees are reserved for parallel or risky work where isolation is actually useful.
+
+## Installing from inside Codex
+
+If you prefer to ask Codex to install it, paste:
 
 ~~~text
-Follow .codex-context/WORK_SETUP.md, using the .context files as compact navigation.
+Install or update Codex Context Optimizer in this project using:
+https://github.com/TIR3D4/codex-context-optimizer/blob/main/prompts/install-and-run.md
+
+Use the lightweight installer. Do not inspect the optimizer repository. Then continue with my task.
 ~~~
+
+## Normal use
+
+After installation, just write tasks:
+
+~~~text
+Fix the payment registration bug and verify the relevant flow.
+~~~
+
+You do not need to manually manage `report`, `doctor`, benchmarks, handoffs, or Git helper commands.
 
 <details>
 <summary><strong>Advanced / diagnostics</strong></summary>
-
-Normal users do not need these commands.
 
 ~~~bash
 python .codex-context/tools/codex-context.py report --repo .
@@ -71,14 +78,9 @@ python .codex-context/tools/codex-context.py fresh-start --repo .
 python .codex-context/tools/codex-context.py analyze --repo .
 ~~~
 
-Optional terminal installer:
-
-~~~bash
-curl -fsSL https://raw.githubusercontent.com/TIR3D4/codex-context-optimizer/main/install.sh | bash
-~~~
-
 Documentation:
 - [Automatic mode](prompts/AUTO_MODE.md)
+- [Git safety](docs/git-safety.md)
 - [Methodology](docs/methodology.md)
 - [Quality guardrails](docs/quality-guardrails.md)
 - [Context pressure](docs/context-pressure.md)
