@@ -13,6 +13,21 @@ The user should not need to manually run optimizer commands during normal work.
 - Avoid broad rescans and rereading unchanged files without a reason.
 - Preserve unrelated working-tree changes.
 
+## Automatic Git safety
+
+If this project already has Git metadata:
+
+- run lightweight `git status --short` before substantial edits when useful;
+- use targeted `git diff -- <relevant paths>` instead of loading broad diffs;
+- preserve all unrelated/uncommitted user changes;
+- never run destructive reset/clean/stash behavior automatically;
+- never initialize Git if the project does not already use it;
+- do not create commits unless the user or project workflow asks for them.
+
+Use branch/worktree isolation only when it materially helps, especially for parallel Codex chats or risky/large changes. Do not create a worktree for every small task.
+
+See `docs/git-safety.md` in the optimizer repository for the full design.
+
 ## Quiet health checks
 
 At sensible task boundaries, not on every turn:
