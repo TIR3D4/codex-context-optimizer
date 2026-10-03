@@ -1,72 +1,177 @@
 # Codex Context Optimizer
 
-A lightweight bootstrap workflow for preparing an existing repository for lower-context, lower-token Codex sessions.
+**English** | [فارسی](README.fa.md) | [Deutsch](README.de.md) | [Español](README.es.md) | [Türkçe](README.tr.md)
 
-This project combines:
+Measure first. Optimize context second. Preserve coding quality throughout.
 
-- **Atlas** for a compact repository map.
-- **AGENTS.md generation + pruning** for concise, repository-specific instructions.
-- A one-shot Codex setup prompt that preserves existing project rules and avoids modifying application logic.
+Codex Context Optimizer is a lightweight toolkit for reducing unnecessary repository context in Codex without forcing the agent to work blind.
 
-## Goal
+It combines:
 
-Reduce unnecessary context loading so Codex can:
+- **Atlas** for a bounded repository map;
+- **agents-md-generator** as a project-fact discovery source;
+- concise, merge-safe **AGENTS.md** guidance;
+- local **Codex usage telemetry** parsing;
+- **before/after benchmarks**;
+- compact **handoffs** for starting fresh threads safely.
 
-- orient itself from a compact repository map;
-- open only the smallest relevant set of source files;
-- prefer targeted searches over broad scans;
-- avoid logs, caches, dependencies, build artifacts, and generated files unless needed;
-- use narrow validation before expensive full-project tests.
+## Design goal
 
-## Upstream tools
+The project does **not** try to minimize tokens at any cost.
 
-- Atlas: https://github.com/fkenmar/atlas
-- agents-md-generator: https://github.com/nguyenthedat123/agents-md-generator
-- Codex: https://github.com/openai/codex
+The optimization target is:
 
-These are independent upstream projects. This repository does not vendor or claim ownership of them.
+> lower unnecessary context while preserving task correctness, tests, project rules, and access to additional source files whenever they are actually needed.
+
+Atlas is treated as a navigation index, never as a replacement for source code.
 
 ## Quick start
 
-Open the target repository in Codex and use:
+Clone this toolkit and install the external helpers:
 
-`prompts/codex-one-shot-setup.md`
+~~~bash
+./setup.sh
+~~~
 
-That prompt performs a one-time setup. Afterward, normal Codex sessions should usually contain only the task itself, or at most:
+Then open the repository you want to optimize in a fresh Codex chat and use:
 
-```text
-Follow AGENTS.md and use atlas-map.md for navigation.
+~~~text
+prompts/codex-one-shot-setup.md
+~~~
 
-Task:
-<your task>
-```
+The setup prompt preserves an existing AGENTS.md, previews generator output instead of blindly overwriting instructions, creates a bounded atlas-map.md, and verifies that application logic was not modified.
+
+## Measure repository context
+
+~~~bash
+python3 scripts/codex-context.py analyze --repo /path/to/project
+~~~
+
+This reports tracked/source files, rough source-size context, AGENTS.md size, atlas-map.md size, large tracked source files, and obvious heavy directories.
+
+The source-token number is only a rough size estimate. It is not API billing telemetry.
+
+## Measure real Codex token telemetry
+
+By default the tool reads local Codex session JSONL files under the Codex home directory:
+
+~~~bash
+python3 scripts/codex-context.py usage
+~~~
+
+It prefers per-response token_usage_record entries and deduplicates them by response ID. When those records are unavailable, it falls back to final cumulative token_count values per session.
+
+Reported metrics can include:
+
+- input tokens;
+- cached input tokens;
+- non-cached input tokens;
+- cache-write input when available;
+- output tokens;
+- reasoning output tokens;
+- total recorded tokens;
+- peak last-turn input/context occupancy.
+
+Local telemetry is useful for comparison, but it is **not** an authoritative invoice or subscription quota calculation.
+
+## Before / after benchmark
+
+Measure a normal run:
+
+~~~bash
+python3 scripts/codex-context.py benchmark-start before --repo /path/to/project
+# Run a representative Codex task
+python3 scripts/codex-context.py benchmark-end before --repo /path/to/project
+~~~
+
+Then enable the optimized setup and run a comparable task:
+
+~~~bash
+python3 scripts/codex-context.py benchmark-start after --repo /path/to/project
+# Run a comparable Codex task
+python3 scripts/codex-context.py benchmark-end after --repo /path/to/project
+~~~
+
+Compare:
+
+~~~bash
+python3 scripts/codex-context.py benchmark-compare before after --repo /path/to/project
+~~~
+
+A reduction is considered useful only if correctness and validation quality are preserved. See [Benchmarking](docs/benchmarking.md).
+
+## Fresh-thread handoff
+
+Long sessions can accumulate large context. Create a compact handoff before moving to a new thread:
+
+~~~bash
+python3 scripts/codex-context.py handoff --repo /path/to/project
+~~~
+
+This creates .codex-context/HANDOFF.md with a deliberately small structure for goal, decisions, changed files, validation and remaining work.
+
+Do not use it as a dump of logs or diffs.
 
 ## Repository structure
 
-```text
+~~~text
 codex-context-optimizer/
 ├── README.md
+├── README.fa.md
+├── README.de.md
+├── README.es.md
+├── README.tr.md
 ├── LICENSE
 ├── prompts/
 │   └── codex-one-shot-setup.md
 ├── templates/
 │   └── AGENTS.md
 ├── scripts/
+│   ├── codex-context.py
 │   ├── install-atlas.sh
 │   ├── install-agentsmd.sh
 │   └── refresh-atlas.sh
 └── docs/
-    └── methodology.md
-```
+    ├── methodology.md
+    ├── benchmarking.md
+    └── quality-guardrails.md
+~~~
 
-## Safety principles
+## Quality guardrails
 
-- Never overwrite an existing `AGENTS.md` blindly.
-- Never modify application/business logic during setup.
-- Preserve unrelated user changes.
-- Keep persistent instructions compact.
-- Treat `atlas-map.md` as a navigation aid, not authoritative source code.
-- Prefer progressive context expansion.
+The optimizer follows several safety rules:
+
+- never force Codex to stay within an insufficient file set;
+- allow progressive context expansion when evidence requires it;
+- preserve existing project-specific AGENTS.md rules;
+- do not ignore real source code just to shrink a map;
+- prefer the narrowest relevant test first, but allow broader validation when risk warrants it;
+- verify setup changes with git diff;
+- never count token reduction as success if the result is less correct.
+
+See [Quality guardrails](docs/quality-guardrails.md).
+
+## Upstream projects
+
+- Atlas: https://github.com/fkenmar/atlas
+- agents-md-generator: https://github.com/nguyenthedat123/agents-md-generator
+- OpenAI Codex: https://github.com/openai/codex
+
+They are independent upstream projects. This repository does not vendor or claim ownership of them.
+
+## Normal Codex chats after setup
+
+Once the repository is prepared, avoid repeating the long setup prompt. A normal request can usually be just the task itself.
+
+If you want an explicit reminder:
+
+~~~text
+Use the project instructions and atlas-map.md for navigation.
+Expand context whenever correctness requires it.
+
+Task:
+<your task>
+~~~
 
 ## License
 
