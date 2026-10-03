@@ -77,16 +77,53 @@ curl -fsSL https://raw.githubusercontent.com/TIR3D4/codex-context-optimizer/main
 
 این روش اختیاری است. برای سادگی و سازگاری با ویندوز، روش نصب از داخل Codex پیشنهاد می‌شود.
 
-## مشاهده مصرف Codex
+## ببین واقعاً چقدر تاثیر داشته
 
-~~~bash
-python3 .codex-context/tools/codex-context.py usage
+فقط همین یک دستور را بزن:
+
+~~~powershell
+python .codex-context\tools\codex-context.py report --repo .
 ~~~
 
-تحلیل context پروژه:
+گزارش جدید نشان می‌دهد:
+- روند زنده قبل/بعد؛
+- همه responseهای بعد از optimizer، نه فقط یک benchmark ثابت؛
+- مصرف session آخر؛
+- فشار context window؛
+- بهتر یا بدتر شدن درصد صرفه‌جویی نسبت به گزارش قبلی؛
+- پیشنهاد چت جدید وقتی context به HIGH یا CRITICAL برسد.
 
-~~~bash
-python3 .codex-context/tools/codex-context.py analyze --repo .
+مثلاً:
+
+~~~text
+Estimated saving:       22.9% per response
+Context pressure:       HIGH
+Since last report:      declined 7.1 percentage points
+
+Recommended action:
+python .codex-context\tools\codex-context.py fresh-start --repo .
+~~~
+
+برای بررسی سلامت setup:
+
+~~~powershell
+python .codex-context\tools\codex-context.py doctor --repo .
+~~~
+
+اگر چت طولانی و سنگین شد:
+
+~~~powershell
+python .codex-context\tools\codex-context.py fresh-start --repo .
+~~~
+
+این دستور یک handoff فشرده بر اساس وضعیت Git می‌سازد و متن آماده برای شروع چت جدید را نمایش می‌دهد.
+
+> درصد بالای Cached Input به‌تنهایی بد نیست. معیار مهم‌تر برای ما رشد مصرف متوسط هر response و میزان پرشدن context window است.
+
+اگر خواستی ساختار repository را جدا بررسی کنی:
+
+~~~powershell
+python .codex-context\tools\codex-context.py analyze --repo .
 ~~~
 
 ## مستندات
@@ -97,6 +134,8 @@ python3 .codex-context/tools/codex-context.py analyze --repo .
 - [حفظ کیفیت](docs/quality-guardrails.md)
 - [چت‌های قدیمی](docs/existing-chats.md)
 - [ChatGPT Work](docs/work-mode.md)
+- [فشار Context و Fresh Start](docs/context-pressure.md)
+- [Integrationهای اختیاری](docs/integrations.md)
 
 ## مجوز
 
