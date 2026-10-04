@@ -123,6 +123,67 @@ def session_path():
 def files_under(base):
     return sorted(base.rglob("*.jsonl")) if base.exists() else []
 
+def session_cwd(path):
+    """Return the working directory recorded by Codex for one rollout file."""
+    try:
+        fh=path.open("r",encoding="utf-8",errors="replace")
+    except OSError:
+        return None
+    with fh:
+        for line_no,line in enumerate(fh,1):
+            if line_no > 250:
+                break
+            try:
+                obj=json.loads(line)
+            except Exception:
+                continue
+            if not isinstance(obj,dict):
+                continue
+            payload=obj.get("payload")
+            if not isinstance(payload,dict):
+                continue
+            if obj.get("type")=="session_meta":
+                cwd=payload.get("cwd")
+                if not cwd and isinstance(payload.get("meta"),dict):
+                    cwd=payload["meta"].get("cwd")
+                if isinstance(cwd,str) and cwd.strip():
+                    return cwd.strip()
+            # Fallback for builds where turn_context carries the usable cwd.
+            if obj.get("type")=="turn_context":
+                cwd=payload.get("cwd")
+                if isinstance(cwd,str) and cwd.strip():
+                    return cwd.strip()
+    return None
+
+def normalized_path(value):
+    try:
+        return os.path.normcase(os.path.realpath(os.path.abspath(os.path.expanduser(str(value)))))
+    except Exception:
+        return os.path.normcase(os.path.abspath(os.path.expanduser(str(value))))
+
+def path_within(child,parent):
+    child=normalized_path(child); parent=normalized_path(parent)
+    try:
+        return os.path.commonpath([child,parent])==parent
+    except (ValueError,OSError):
+        return child==parent
+
+def session_matches_project(path,root):
+    if root is None:
+        return True
+    cwd=session_cwd(path)
+    if not cwd:
+        return False
+    # Sessions started from the project root or one of its subdirectories belong
+    # to this project. Parent-directory sessions are intentionally excluded.
+    return path_within(cwd,root)
+
+def session_files(base,root=None):
+    files=files_under(base)
+    if root is None:
+        return files
+    return [p for p in files if session_matches_project(p,root)]
+
 def usage_dict(d):
     def n(s,c):
         v=d.get(s,d.get(c,0)); return int(v or 0) if isinstance(v,(int,float)) else 0
@@ -148,10 +209,10 @@ def token_count(obj):
     info=p.get("info") if isinstance(p.get("info"),dict) else {}
     return info.get("total_token_usage"),info.get("last_token_usage"),int(info.get("model_context_window") or 0)
 
-def collect(base):
+def collect(base,root=None):
     modern=Usage(source="token_usage_record"); seen=set(); mfiles=set()
     final={}; peaks={}; window=0
-    for path in files_under(base):
+    for path in session_files(base,root):
         try:
             fh=path.open("r",encoding="utf-8",errors="replace")
         except OSError: continue
@@ -203,12 +264,15 @@ def print_usage(u,title="Codex usage"):
 
 def cmd_usage(a):
     base=pathlib.Path(a.sessions).expanduser() if a.sessions else session_path()
-    u=collect(base)
+    root=root_for(a.repo) if a.repo else None
+    u=collect(base,root)
     if a.json:
         d=asdict(u); d.update({"non_cached_input_tokens":u.non_cached_input_tokens,"cached_ratio":u.cached_ratio,
-          "avg_total_per_response":u.avg_total_per_response,"sessions_path":str(base)})
+          "avg_total_per_response":u.avg_total_per_response,"sessions_path":str(base),
+          "scope_repo":str(root) if root else None})
         print(json.dumps(d,indent=2)); return 0
     print_usage(u)
+    if root: print("Project scope:            "+str(root))
     if u.source.startswith("token_count"): print("\nNote: using final cumulative token_count per session because modern token_usage_record entries were not found.")
     print("\nLocal telemetry is not an authoritative invoice or plan-quota calculation.")
     return 0
@@ -218,12 +282,13 @@ def bench_path(root,name):
     safe="".join(c if c.isalnum() or c in "-_." else "_" for c in name)
     return p/(safe+".json")
 
-def snap(base):
-    return {"captured_at":dt.datetime.now(dt.timezone.utc).isoformat(),"sessions_path":str(base),"usage":asdict(collect(base))}
+def snap(base,root=None):
+    return {"captured_at":dt.datetime.now(dt.timezone.utc).isoformat(),"sessions_path":str(base),
+      "scope_repo":str(root) if root else None,"usage":asdict(collect(base,root))}
 
 def cmd_start(a):
     root=root_for(a.repo); base=pathlib.Path(a.sessions).expanduser() if a.sessions else session_path()
-    p=bench_path(root,a.name+".start"); p.write_text(json.dumps(snap(base),indent=2),encoding="utf-8")
+    p=bench_path(root,a.name+".start"); p.write_text(json.dumps(snap(base,root),indent=2),encoding="utf-8")
     print("Benchmark '"+a.name+"' started. Run the task, then benchmark-end with the same name.")
     return 0
 
@@ -231,7 +296,7 @@ def cmd_end(a):
     root=root_for(a.repo); base=pathlib.Path(a.sessions).expanduser() if a.sessions else session_path()
     sp=bench_path(root,a.name+".start")
     if not sp.exists(): print("Missing start snapshot.",file=sys.stderr); return 2
-    start=json.loads(sp.read_text()); end=snap(base)
+    start=json.loads(sp.read_text()); end=snap(base,root)
     eu=Usage(**end["usage"]); su=Usage(**start["usage"]); delta=eu.minus(su)
     rp=bench_path(root,a.name+".result"); rp.write_text(json.dumps({"name":a.name,"start":start,"end":end,"delta":asdict(delta)},indent=2),encoding="utf-8")
     print_usage(delta,"Benchmark result: "+a.name); return 0
@@ -257,8 +322,8 @@ def cmd_compare(a):
     return 0
 
 
-def latest_session_health(base):
-    files=files_under(base)
+def latest_session_health(base,root=None):
+    files=session_files(base,root)
     if not files:
         return None
     try:
@@ -359,7 +424,7 @@ def append_report_history(root,record):
 def cmd_report(a):
     root=root_for(a.repo)
     base=pathlib.Path(a.sessions).expanduser() if a.sessions else session_path()
-    current=collect(base)
+    current=collect(base,root)
 
     baseline=None
     baseline_label=None
@@ -367,35 +432,31 @@ def cmd_report(a):
 
     if baseline_file.exists():
         try:
-            data=json.loads(baseline_file.read_text(encoding="utf-8"))
-            raw=data.get("usage",data)
-            baseline=Usage(**{k:v for k,v in raw.items() if k in Usage.__dataclass_fields__})
-            baseline_label="install baseline"
+            data=json.loads(baseline_file.read_text(encoding="utf-8-sig"))
+            scope=data.get("scope_repo")
+            if scope and normalized_path(scope)==normalized_path(root):
+                raw=data.get("usage",data)
+                baseline=Usage(**{k:v for k,v in raw.items() if k in Usage.__dataclass_fields__})
+                baseline_label="project install baseline"
         except Exception:
             baseline=None
 
-    if baseline is None:
-        result_path=bench_path(root,"optimized.result")
-        if result_path.exists():
-            try:
-                data=json.loads(result_path.read_text(encoding="utf-8"))
-                raw=data.get("start",{}).get("usage",{})
-                if raw:
-                    baseline=Usage(**{k:v for k,v in raw.items() if k in Usage.__dataclass_fields__})
-                    baseline_label="optimized benchmark start"
-            except Exception:
-                baseline=None
+    # Older baselines/benchmarks were global across all Codex projects.
+    # Never mix them into a project-scoped report.
 
     if baseline is None:
         baseline_file.parent.mkdir(parents=True,exist_ok=True)
         baseline_file.write_text(json.dumps({
             "captured_at":dt.datetime.now(dt.timezone.utc).isoformat(),
+            "scope_repo":str(root),
             "usage":asdict(current),
-            "note":"Created automatically by report because no earlier baseline was available."
+            "note":"Project-scoped baseline created automatically from Codex session cwd metadata."
         },indent=2),encoding="utf-8")
         print("Optimizer report")
         print("----------------")
-        print("Tracking baseline created now.")
+        print("Project-scoped baseline created now.")
+        print("Project:                  "+str(root))
+        print("Matched sessions:         "+f"{current.sessions:,}")
         print("Current responses:        "+f"{current.responses:,}")
         print("Current avg/response:     "+(f"{current.avg_total_per_response:,.0f}" if current.responses else "n/a"))
         print()
@@ -410,7 +471,7 @@ def cmd_report(a):
     if before_avg and after_avg:
         saving=((before_avg-after_avg)/before_avg)*100
 
-    latest=latest_session_health(base)
+    latest=latest_session_health(base,root)
     occupancy=latest["occupancy"] if latest else 0.0
     pressure=pressure_label(occupancy)
 
@@ -418,6 +479,8 @@ def cmd_report(a):
 
     print("Optimizer report")
     print("----------------")
+    print("Project:                  "+str(root))
+    print("Matched sessions:         "+f"{current.sessions:,}")
     print("Baseline:                 "+str(baseline_label))
     print("Before responses:         "+f"{baseline.responses:,}")
     print("After responses:          "+f"{after.responses:,}")
@@ -471,12 +534,6 @@ def cmd_report(a):
         print("This session is using a large share of the context window.")
         print("Create a compact handoff and continue in a fresh chat:")
         print("  python .codex-context\\tools\\codex-context.py fresh-start --repo .")
-    elif saving is not None and saving < 15 and after.responses >= 20:
-        print()
-        print("Recommended action")
-        print("------------------")
-        print("Savings are becoming small. Consider a fresh chat for the next task boundary.")
-
     append_report_history(root,{
         "captured_at":dt.datetime.now(dt.timezone.utc).isoformat(),
         "before_responses":baseline.responses,
@@ -560,7 +617,7 @@ def cmd_fresh_start(a):
 def cmd_doctor(a):
     root=root_for(a.repo)
     base=pathlib.Path(a.sessions).expanduser() if a.sessions else session_path()
-    latest=latest_session_health(base)
+    latest=latest_session_health(base,root)
 
     agents=root/"AGENTS.md"
     atlas=root/"atlas-map.md"
@@ -592,7 +649,7 @@ def parser():
     p=argparse.ArgumentParser(prog="codex-context",description="Measure and reduce unnecessary Codex context usage.")
     s=p.add_subparsers(dest="cmd",required=True)
     x=s.add_parser("analyze"); x.add_argument("--repo"); x.add_argument("--json",action="store_true"); x.add_argument("--large-file-bytes",type=int,default=204800); x.add_argument("--agents-token-warn",type=int,default=2500); x.add_argument("--atlas-token-warn",type=int,default=3000); x.set_defaults(fn=cmd_analyze)
-    x=s.add_parser("usage"); x.add_argument("--sessions"); x.add_argument("--json",action="store_true"); x.set_defaults(fn=cmd_usage)
+    x=s.add_parser("usage"); x.add_argument("--repo"); x.add_argument("--sessions"); x.add_argument("--json",action="store_true"); x.set_defaults(fn=cmd_usage)
     x=s.add_parser("benchmark-start"); x.add_argument("name"); x.add_argument("--repo"); x.add_argument("--sessions"); x.set_defaults(fn=cmd_start)
     x=s.add_parser("benchmark-end"); x.add_argument("name"); x.add_argument("--repo"); x.add_argument("--sessions"); x.set_defaults(fn=cmd_end)
     x=s.add_parser("benchmark-compare"); x.add_argument("before"); x.add_argument("after"); x.add_argument("--repo"); x.set_defaults(fn=cmd_compare)
