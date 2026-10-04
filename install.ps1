@@ -82,7 +82,7 @@ $Baseline = Join-Path $ContextDir "install-baseline.json"
 if (-not (Test-Path $Baseline)) {
     if ($Python) {
         try {
-            & $Python (Join-Path $ToolsDir "codex-context.py") usage --json |
+            & $Python (Join-Path $ToolsDir "codex-context.py") usage --json --repo $Target |
                 Set-Content -LiteralPath $Baseline -Encoding UTF8
         } catch {
             Remove-Item -Force -ErrorAction SilentlyContinue $Baseline
