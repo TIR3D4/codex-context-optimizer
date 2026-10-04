@@ -88,9 +88,9 @@ cp "$TOOL_HOME/scripts/work-context.py" "$TARGET/.codex-context/tools/work-conte
 # Never overwrite an existing baseline.
 if [ ! -e "$TARGET/.codex-context/install-baseline.json" ]; then
   if command -v python3 >/dev/null 2>&1; then
-    python3 "$TARGET/.codex-context/tools/codex-context.py" usage --json > "$TARGET/.codex-context/install-baseline.json" 2>/dev/null || rm -f "$TARGET/.codex-context/install-baseline.json"
+    python3 "$TARGET/.codex-context/tools/codex-context.py" usage --json --repo "$TARGET" > "$TARGET/.codex-context/install-baseline.json" 2>/dev/null || rm -f "$TARGET/.codex-context/install-baseline.json"
   elif command -v python >/dev/null 2>&1; then
-    python "$TARGET/.codex-context/tools/codex-context.py" usage --json > "$TARGET/.codex-context/install-baseline.json" 2>/dev/null || rm -f "$TARGET/.codex-context/install-baseline.json"
+    python "$TARGET/.codex-context/tools/codex-context.py" usage --json --repo "$TARGET" > "$TARGET/.codex-context/install-baseline.json" 2>/dev/null || rm -f "$TARGET/.codex-context/install-baseline.json"
   fi
 fi
 
